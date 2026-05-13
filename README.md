@@ -1,73 +1,76 @@
-# React + TypeScript + Vite
+# Taxi Platform Web Admin
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite admin panel for a taxi platform.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React, TypeScript, Vite
+- React Router
+- TanStack Query
+- Axios
+- Zustand
+- Tailwind CSS
+- React Hook Form + Zod
+- WebSocket client
 
-## React Compiler
+## Run
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Default URL: `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Environment
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Copy `.env.example` if custom values are needed.
+
+```env
+VITE_API_BASE_URL=http://localhost:8080/api/v1
+VITE_WS_URL=ws://localhost:8080/ws
+VITE_USE_MOCK_API=true
+```
+
+`VITE_USE_MOCK_API=true` lets the frontend run without backend. Use any code on `/verify-code` in mock mode.
+
+Set `VITE_USE_MOCK_API=false` to use the real Go API.
+
+## Implemented Areas
+
+- JWT admin auth flow
+- Protected routes
+- RBAC menu and route guards
+- Admin layout with sidebar and header
+- Light/dark theme toggle
+- Orders table, order card, dispatcher order creation
+- Driver assignment to order
+- Drivers table, driver card, document moderation
+- Cars, passengers, taxi parks tables
+- Tariff management form
+- Flexible platform commission settings
+- Finance operations and payouts
+- Audit logs
+- WebSocket service for order, driver status and notification updates
+- Mock API layer with typed domain fixtures
+
+## Commission Rules
+
+Default global platform commission is `1%` (`100` basis points).
+
+Priority:
+
+1. driver
+2. taxi park
+3. tariff
+4. city
+5. global
+
+The UI stores percent values for admins and sends integer basis points to API-compatible services.
+
+## Quality Checks
+
+```bash
+npm run lint
+npm run build
 ```
