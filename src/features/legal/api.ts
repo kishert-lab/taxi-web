@@ -25,6 +25,7 @@ export type LegalDocumentPayload = {
   version: string
   title: string
   content: string
+  activate?: boolean
 }
 
 export async function getLegalDocuments(params?: {
@@ -35,7 +36,8 @@ export async function getLegalDocuments(params?: {
     '/admin/legal/documents',
     { params },
   )
-  return response.data.data
+  const data = response.data.data as LegalDocument[] | { documents: LegalDocument[] }
+  return Array.isArray(data) ? data : data.documents
 }
 
 export async function createLegalDocument(payload: LegalDocumentPayload) {

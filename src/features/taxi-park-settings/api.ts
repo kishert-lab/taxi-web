@@ -24,9 +24,22 @@ export type TaxiParkSettings = {
   is_active: boolean
 }
 
+type TaxiParkSettingsResponse = Omit<
+  TaxiParkSettings,
+  'minimum_order_price_cents' | 'commission_basis_points'
+> & {
+  minimum_order_price: { amount_cents: number; currency: string }
+  commission_basis_points?: number | null
+}
+
 export async function getTaxiParkSettings() {
-  const response = await http.get<ApiResponse<TaxiParkSettings>>('/taxi-park/settings')
-  return response.data.data
+  const response = await http.get<ApiResponse<TaxiParkSettingsResponse>>('/taxi-park/settings')
+  const data = response.data.data
+  return {
+    ...data,
+    minimum_order_price_cents: data.minimum_order_price.amount_cents,
+    commission_basis_points: data.commission_basis_points ?? 100,
+  }
 }
 
 export async function updateTaxiParkSettings(payload: TaxiParkSettings) {

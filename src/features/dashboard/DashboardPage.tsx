@@ -46,20 +46,20 @@ function AdminDashboard() {
   const data = overview.data
   if (!data) return null
   const chartData = [
-    { name: 'Выручка', value: data.total_revenue.amount_cents / 100 },
-    { name: 'Комиссия', value: data.platform_commission.amount_cents / 100 },
+    { name: 'Выручка', value: data.completed_orders_revenue.amount_cents / 100 },
+    { name: 'Комиссия', value: data.total_commissions.amount_cents / 100 },
     { name: 'Выплаты', value: data.driver_payouts.amount_cents / 100 },
-    { name: 'Парки', value: data.taxi_park_income.amount_cents / 100 },
+    { name: 'Парки', value: data.taxi_park_revenue.amount_cents / 100 },
   ]
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard title="Общая выручка" value={formatMoneyCents(data.total_revenue)} />
-        <StatCard title="Комиссии" value={formatMoneyCents(data.platform_commission)} />
+        <StatCard title="Общая выручка" value={formatMoneyCents(data.completed_orders_revenue)} />
+        <StatCard title="Комиссии" value={formatMoneyCents(data.total_commissions)} />
         <StatCard title="Заказы" value={data.completed_orders_count} />
         <StatCard title="Выплаты" value={formatMoneyCents(data.driver_payouts)} />
-        <StatCard title="Доход парков" value={formatMoneyCents(data.taxi_park_income)} />
+        <StatCard title="Доход парков" value={formatMoneyCents(data.taxi_park_revenue)} />
       </div>
       <Card className="h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -109,7 +109,7 @@ function TaxiParkDashboard() {
               {orders.data.slice(0, 5).map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50">
                   <td className="border-b border-slate-100 p-3">{order.status}</td>
-                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(order.total_price ?? order.price)}</td>
+                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(order.gross_amount ?? order.total_price ?? order.price)}</td>
                   <td className="border-b border-slate-100 p-3">{formatDate(order.created_at)}</td>
                 </tr>
               ))}

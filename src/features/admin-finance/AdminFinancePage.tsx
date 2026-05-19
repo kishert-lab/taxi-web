@@ -25,11 +25,11 @@ export function AdminFinancePage() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <StatCard title="Общая выручка" value={formatMoneyCents(data.total_revenue)} />
-      <StatCard title="Комиссии платформы" value={formatMoneyCents(data.platform_commission)} />
+      <StatCard title="Общая выручка" value={formatMoneyCents(data.completed_orders_revenue)} />
+      <StatCard title="Комиссии платформы" value={formatMoneyCents(data.total_commissions)} />
       <StatCard title="Завершенных заказов" value={data.completed_orders_count} />
       <StatCard title="Выплаты водителям" value={formatMoneyCents(data.driver_payouts)} />
-      <StatCard title="Доход таксопарков" value={formatMoneyCents(data.taxi_park_income)} />
+      <StatCard title="Доход таксопарков" value={formatMoneyCents(data.taxi_park_revenue)} />
     </div>
   )
 }

@@ -23,9 +23,15 @@ import {
 const wait = async () => new Promise((resolve) => setTimeout(resolve, 250))
 
 export const mockApi = {
-  async login() {
+  async login(role?: AuthUser['role'], phone?: string) {
     await wait()
-    return { expires_in_sec: 300 }
+    return {
+      access_token: 'mock-access-token',
+      refresh_token: 'mock-refresh-token',
+      token_type: 'Bearer',
+      expires_in: 900,
+      user: { ...mockUser, id: phone ?? mockUser.id, phone, role: role ?? 'admin' },
+    }
   },
 
   async verifyCode(role?: AuthUser['role']) {

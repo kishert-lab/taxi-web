@@ -64,7 +64,7 @@ export function TaxiParkOrdersPage() {
                     <Badge variant={statusVariant(order.status)}>{order.status}</Badge>
                   </td>
                   <td className="border-b border-slate-100 p-3">{order.driver_name ?? order.driver_id ?? '—'}</td>
-                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(order.total_price ?? order.price)}</td>
+                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(order.gross_amount ?? order.total_price ?? order.price)}</td>
                   <td className="border-b border-slate-100 p-3">{formatDate(order.created_at)}</td>
                   <td className="border-b border-slate-100 p-3">{formatDate(order.completed_at)}</td>
                 </tr>

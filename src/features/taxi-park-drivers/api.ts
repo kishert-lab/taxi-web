@@ -13,8 +13,9 @@ export type TaxiParkDriver = {
 }
 
 export async function getTaxiParkDrivers(status?: string) {
-  const response = await http.get<ApiResponse<TaxiParkDriver[]>>('/taxi-park/drivers', {
+  const response = await http.get<ApiResponse<{ drivers: TaxiParkDriver[] }>>('/taxi-park/drivers', {
     params: status ? { status } : undefined,
   })
-  return response.data.data
+  const drivers = response.data.data.drivers
+  return status ? drivers.filter((driver) => driver.status === status) : drivers
 }

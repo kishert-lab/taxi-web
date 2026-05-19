@@ -1,57 +1,57 @@
 import {
-  BarChart3,
   BadgeDollarSign,
   Car,
   ClipboardList,
   FileText,
   Gauge,
   LogOut,
-  Map,
-  Percent,
-  Shield,
   Settings,
   Tags,
   Users,
 } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 
+import type { UserRole } from '../api/types'
 import { useAuthStore } from '../auth/auth-store'
-import { hasPermission, type PermissionCode } from '../rbac/permissions'
 import { Button } from '../ui/Button'
 import { cn } from '../utils/cn'
 
-const menuItems: {
+type MenuItem = {
   label: string
   href: string
   icon: typeof Gauge
-  permission: PermissionCode
-}[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: Gauge, permission: 'dashboard.view' },
-  { label: 'Заказы', href: '/orders', icon: ClipboardList, permission: 'orders.view' },
-  { label: 'Карта', href: '/map', icon: Map, permission: 'map.view' },
-  { label: 'Водители', href: '/drivers', icon: Users, permission: 'drivers.view' },
-  { label: 'Автомобили', href: '/cars', icon: Car, permission: 'cars.view' },
-  { label: 'Пассажиры', href: '/passengers', icon: Users, permission: 'passengers.view' },
-  { label: 'Таксопарки', href: '/taxi-parks', icon: Car, permission: 'taxi_parks.view' },
-  { label: 'Тарифы', href: '/tariffs', icon: Tags, permission: 'tariffs.manage' },
-  { label: 'Комиссии', href: '/commissions', icon: Percent, permission: 'commissions.manage' },
-  { label: 'Финансы', href: '/finance', icon: BadgeDollarSign, permission: 'finance.view' },
-  { label: 'Выплаты', href: '/payouts', icon: BadgeDollarSign, permission: 'payouts.manage' },
-  { label: 'Зоны', href: '/zones', icon: Map, permission: 'zones.view' },
-  { label: 'Промокоды', href: '/promocodes', icon: Tags, permission: 'promocodes.view' },
-  { label: 'Support', href: '/support', icon: FileText, permission: 'support.view' },
-  { label: 'Аналитика', href: '/analytics', icon: BarChart3, permission: 'analytics.view' },
-  { label: 'Админы', href: '/admin-users', icon: Shield, permission: 'admin_users.manage' },
-  { label: 'Роли', href: '/roles', icon: Shield, permission: 'roles.manage' },
-  { label: 'Настройки', href: '/settings', icon: Settings, permission: 'settings.manage' },
-  { label: 'Аудит', href: '/audit-logs', icon: FileText, permission: 'audit_logs.view' },
-]
+}
+
+const menuByRole: Partial<Record<UserRole, MenuItem[]>> = {
+  admin: [
+    { label: 'Dashboard', href: '/dashboard', icon: Gauge },
+    { label: 'Финансы', href: '/finance', icon: BadgeDollarSign },
+    { label: 'Юр. документы', href: '/admin/legal', icon: FileText },
+  ],
+  taxi_park: [
+    { label: 'Dashboard', href: '/dashboard', icon: Gauge },
+    { label: 'Настройки', href: '/taxi-park/settings', icon: Settings },
+    { label: 'Тарифы', href: '/taxi-park/tariffs', icon: Tags },
+    { label: 'Водители', href: '/taxi-park/drivers', icon: Users },
+    { label: 'Заказы', href: '/taxi-park/orders', icon: ClipboardList },
+  ],
+  driver: [
+    { label: 'Dashboard', href: '/dashboard', icon: Gauge },
+    { label: 'Финансы', href: '/driver/finance', icon: BadgeDollarSign },
+  ],
+  dispatcher: [
+    { label: 'Dashboard', href: '/dashboard', icon: Gauge },
+    { label: 'Заказы таксопарка', href: '/taxi-park/orders', icon: ClipboardList },
+    { label: 'Водители', href: '/taxi-park/drivers', icon: Car },
+  ],
+  passenger: [{ label: 'Dashboard', href: '/dashboard', icon: Gauge }],
+}
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
-  const menu = menuItems.filter((item) => hasPermission(user?.role, item.permission))
+  const menu = menuByRole[user?.role ?? 'passenger'] ?? menuByRole.passenger ?? []
 
   return (
     <aside className="flex h-full min-h-screen w-72 flex-col bg-[#0F172A] px-4 py-5 text-white">
@@ -68,7 +68,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
           return (
             <NavLink
-              key={item.href + item.label}
+              key={item.href}
               to={item.href}
               onClick={onNavigate}
               className={({ isActive }) =>
