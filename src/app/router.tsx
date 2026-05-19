@@ -2,14 +2,12 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import { AdminFinancePage } from '../features/admin-finance/AdminFinancePage'
 import {
-  AdminDashboardPage,
   AdminUsersPage,
   AnalyticsPage,
   AuditLogsPage,
   CarsPage,
   CommissionPage,
   DriversPage,
-  FinancePage,
   MapPage,
   OrdersPage,
   PassengersPage,
@@ -26,6 +24,7 @@ import { CreateOrderPage } from '../features/admin/CreateOrderPage'
 import { DriverDetailPage } from '../features/admin/DriverDetailPage'
 import { OrderDetailPage } from '../features/admin/OrderDetailPage'
 import { LoginPage } from '../features/auth/LoginPage'
+import { DriverRegistrationPage } from '../features/auth/DriverRegistrationPage'
 import { VerifyCodePage } from '../features/auth/VerifyCodePage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { DriverFinancePage } from '../features/driver-finance/DriverFinancePage'
@@ -41,6 +40,7 @@ import { DashboardLayout } from '../shared/layout/DashboardLayout'
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/dashboard" replace /> },
   { path: '/login', element: <LoginPage /> },
+  { path: '/register/driver', element: <DriverRegistrationPage /> },
   { path: '/verify-code', element: <VerifyCodePage /> },
   { path: '/legal/:kind', element: <PublicLegalDocumentPage /> },
   {
@@ -49,7 +49,7 @@ export const router = createBrowserRouter([
       {
         element: <DashboardLayout />,
         children: [
-          { path: '/dashboard', element: <AdminDashboardPage /> },
+          { path: '/dashboard', element: <DashboardPage /> },
           {
             element: <PermissionGuard permission="orders.view" />,
             children: [
@@ -74,7 +74,7 @@ export const router = createBrowserRouter([
           { element: <PermissionGuard permission="taxi_parks.view" />, children: [{ path: '/taxi-parks', element: <TaxiParksPage /> }] },
           { element: <PermissionGuard permission="tariffs.manage" />, children: [{ path: '/tariffs', element: <TariffsAdminPage /> }] },
           { element: <PermissionGuard permission="commissions.manage" />, children: [{ path: '/commissions', element: <CommissionPage /> }] },
-          { element: <PermissionGuard permission="finance.view" />, children: [{ path: '/finance', element: <FinancePage /> }] },
+          { element: <PermissionGuard permission="finance.view" />, children: [{ path: '/finance', element: <AdminFinancePage /> }] },
           { element: <PermissionGuard permission="payouts.manage" />, children: [{ path: '/payouts', element: <PayoutsPage /> }] },
           { element: <PermissionGuard permission="zones.view" />, children: [{ path: '/zones', element: <ZonesPage /> }] },
           { element: <PermissionGuard permission="promocodes.view" />, children: [{ path: '/promocodes', element: <PromocodesPage /> }] },

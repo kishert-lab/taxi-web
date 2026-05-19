@@ -41,10 +41,10 @@ export function DriverFinancePage() {
             <tbody>
               {transactions.data.map((transaction) => (
                 <tr key={transaction.id} className="hover:bg-slate-50">
-                  <td className="border-b border-slate-100 p-3">{transaction.type}</td>
-                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(transaction.amount)}</td>
-                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(transaction.commission)}</td>
-                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(transaction.net_income)}</td>
+                  <td className="border-b border-slate-100 p-3">{transaction.type ?? transaction.transaction_type}</td>
+                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(transaction.amount ?? transaction.gross_amount)}</td>
+                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(transaction.commission ?? transaction.commission_amount)}</td>
+                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(transaction.net_income ?? transaction.net_amount)}</td>
                   <td className="border-b border-slate-100 p-3">{formatDate(transaction.created_at)}</td>
                 </tr>
               ))}

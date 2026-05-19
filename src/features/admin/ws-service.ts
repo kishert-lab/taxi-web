@@ -22,7 +22,9 @@ export class AdminWebSocketService {
     const accessToken = getAccessToken()
     if (!accessToken || this.socket) return
 
-    const url = new URL(appConfig.wsUrl)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const baseUrl = `${protocol}//${window.location.host}`
+    const url = new URL(appConfig.wsUrl, baseUrl)
     url.searchParams.set('token', accessToken)
     this.socket = new WebSocket(url.toString())
     this.socket.onmessage = (message) => this.handleMessage(message.data)

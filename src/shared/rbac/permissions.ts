@@ -18,6 +18,7 @@ export type PermissionCode =
   | 'zones.view'
   | 'promocodes.view'
   | 'support.view'
+  | 'legal.manage'
   | 'analytics.view'
   | 'admin_users.manage'
   | 'roles.manage'
@@ -42,6 +43,7 @@ const allPermissions: PermissionCode[] = [
   'zones.view',
   'promocodes.view',
   'support.view',
+  'legal.manage',
   'analytics.view',
   'admin_users.manage',
   'roles.manage',
@@ -82,8 +84,8 @@ export const rolePermissions: Record<UserRole, PermissionCode[]> = {
   finance_manager: ['dashboard.view', 'commissions.manage', 'finance.view', 'payouts.manage', 'analytics.view', 'audit_logs.view'],
   moderator: ['dashboard.view', 'drivers.view', 'drivers.moderate_documents', 'cars.view', 'passengers.view', 'support.view'],
   support: ['dashboard.view', 'orders.view', 'passengers.view', 'drivers.view', 'support.view'],
-  admin: allPermissions,
-  taxi_park: ['dashboard.view', 'orders.view', 'drivers.view', 'cars.view', 'finance.view'],
+  admin: ['dashboard.view', 'finance.view', 'legal.manage'],
+  taxi_park: ['dashboard.view'],
   driver: ['dashboard.view'],
   passenger: ['dashboard.view'],
 }
