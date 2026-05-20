@@ -18,6 +18,10 @@ export function useWebSocket() {
       const event = JSON.parse(message.data) as WebSocketEvent
 
       if (event.type === 'sync.required') {
+        if (role === 'taxi_park' || role === 'dispatcher') {
+          void http.get('/taxi-park/orders')
+          void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
+        }
         if (role === 'driver') {
           void http.get('/driver/orders/current')
           void queryClient.invalidateQueries({ queryKey: ['driver-orders-history'] })

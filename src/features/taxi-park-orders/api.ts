@@ -15,7 +15,7 @@ export type TaxiParkOrder = {
 
 export async function getTaxiParkOrders(params?: { status?: string; limit?: number }) {
   const response = await http.get<ApiResponse<{ orders: TaxiParkOrder[] }>>('/taxi-park/orders', {
-    params,
+    params: params?.limit ? { limit: params.limit } : undefined,
   })
   const orders = response.data.data.orders
   return params?.status ? orders.filter((order) => order.status === params.status) : orders

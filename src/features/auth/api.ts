@@ -9,12 +9,6 @@ export type LoginRequest = {
   role: UserRole
 }
 
-export type VerifyCodeRequest = {
-  email: string
-  role: UserRole
-  code: string
-}
-
 export type DriverRegistrationRequest = {
   phone: string
   email: string
@@ -66,32 +60,6 @@ export async function login(payload: LoginRequest) {
       phone: payload.phone,
       role: payload.role,
       name: payload.phone,
-    },
-  }
-}
-
-export async function verifyCode(payload: VerifyCodeRequest) {
-  if (appConfig.useMockApi) {
-    return mockApi.verifyCode(payload.role)
-  }
-
-  const response = await http.post<
-    ApiResponse<{
-      access_token: string
-      refresh_token: string
-      token_type: string
-      expires_in: number
-      user?: AuthUser
-    }>
-  >('/auth/verify-code', payload)
-
-  return {
-    ...response.data.data,
-    user: response.data.data.user ?? {
-      id: payload.email,
-      email: payload.email,
-      role: payload.role,
-      name: payload.email,
     },
   }
 }

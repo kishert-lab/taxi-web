@@ -1,8 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { Button } from '../../shared/ui/Button'
+import { ColorPicker } from '../../shared/ui/ColorPicker'
+import { brandColorOptions } from '../../shared/ui/color-options'
 import { Input } from '../../shared/ui/Input'
 import { Select } from '../../shared/ui/Select'
 import {
@@ -83,7 +85,7 @@ export function TaxiParkSettingsForm({
   onSubmit: (payload: TaxiParkSettings) => void
   isSaving: boolean
 }) {
-  const { register, handleSubmit, formState } = useForm<
+  const { control, register, handleSubmit, formState } = useForm<
     FormInputValues,
     unknown,
     FormValues
@@ -108,8 +110,6 @@ export function TaxiParkSettingsForm({
           ['support_email', 'Email поддержки'],
           ['website', 'Сайт'],
           ['logo_url', 'Логотип URL'],
-          ['primary_color', 'Основной цвет'],
-          ['secondary_color', 'Дополнительный цвет'],
           ['minimum_order_price_rub', 'Минимальная цена, ₽'],
           ['commission_percent', 'Комиссия, %'],
           ['cancellation_timeout_sec', 'Таймаут отмены, сек'],
@@ -120,6 +120,36 @@ export function TaxiParkSettingsForm({
             <Input {...register(name as keyof FormValues)} />
           </label>
         ))}
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Основной цвет</span>
+          <Controller
+            control={control}
+            name="primary_color"
+            render={({ field }) => (
+              <ColorPicker
+                value={field.value}
+                onChange={field.onChange}
+                options={brandColorOptions}
+                type="hex"
+              />
+            )}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Дополнительный цвет</span>
+          <Controller
+            control={control}
+            name="secondary_color"
+            render={({ field }) => (
+              <ColorPicker
+                value={field.value}
+                onChange={field.onChange}
+                options={brandColorOptions}
+                type="hex"
+              />
+            )}
+          />
+        </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-slate-700">Активен</span>
           <Select {...register('is_active', { setValueAs: (value) => value === 'true' })}>

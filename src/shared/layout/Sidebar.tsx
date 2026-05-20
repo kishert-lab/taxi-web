@@ -25,7 +25,7 @@ type MenuItem = {
 const menuByRole: Partial<Record<UserRole, MenuItem[]>> = {
   admin: [
     { label: 'Dashboard', href: '/dashboard', icon: Gauge },
-    { label: 'Финансы', href: '/finance', icon: BadgeDollarSign },
+    { label: 'Финансы', href: '/admin/finance', icon: BadgeDollarSign },
     { label: 'Юр. документы', href: '/admin/legal', icon: FileText },
   ],
   taxi_park: [
@@ -33,6 +33,7 @@ const menuByRole: Partial<Record<UserRole, MenuItem[]>> = {
     { label: 'Настройки', href: '/taxi-park/settings', icon: Settings },
     { label: 'Тарифы', href: '/taxi-park/tariffs', icon: Tags },
     { label: 'Водители', href: '/taxi-park/drivers', icon: Users },
+    { label: 'Автомобили', href: '/taxi-park/cars', icon: Car },
     { label: 'Заказы', href: '/taxi-park/orders', icon: ClipboardList },
   ],
   driver: [
@@ -42,7 +43,8 @@ const menuByRole: Partial<Record<UserRole, MenuItem[]>> = {
   dispatcher: [
     { label: 'Dashboard', href: '/dashboard', icon: Gauge },
     { label: 'Заказы таксопарка', href: '/taxi-park/orders', icon: ClipboardList },
-    { label: 'Водители', href: '/taxi-park/drivers', icon: Car },
+    { label: 'Водители', href: '/taxi-park/drivers', icon: Users },
+    { label: 'Автомобили', href: '/taxi-park/cars', icon: Car },
   ],
   passenger: [{ label: 'Dashboard', href: '/dashboard', icon: Gauge }],
 }

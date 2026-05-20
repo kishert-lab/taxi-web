@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 
-import { useAdminWebSocket } from '../../features/admin/use-admin-websocket'
+import { useWebSocket } from '../../features/websocket/use-mobile-ws'
 import { Header } from './Header'
 import { MobileSidebar } from './MobileSidebar'
 import { Sidebar } from './Sidebar'
 
 export function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  useAdminWebSocket()
+  useWebSocket()
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">

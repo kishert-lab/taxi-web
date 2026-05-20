@@ -34,15 +34,6 @@ export const mockApi = {
     }
   },
 
-  async verifyCode(role?: AuthUser['role']) {
-    await wait()
-    return {
-      access_token: 'mock-access-token',
-      refresh_token: 'mock-refresh-token',
-      user: { ...mockUser, role: role ?? 'super_admin' },
-    }
-  },
-
   async list<T>(items: T[]) {
     await wait()
     return items

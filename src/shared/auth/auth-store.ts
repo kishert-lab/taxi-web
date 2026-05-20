@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import type { AuthUser, UserRole } from '../api/types'
+import type { AuthUser } from '../api/types'
 import { clearTokens, getAccessToken, setTokens } from './token-storage'
 
 const userStorageKey = 'taxi_platform_user'
@@ -16,17 +16,9 @@ function getStoredUser() {
   }
 }
 
-type PendingLogin = {
-  phone: string
-  email: string
-  role: UserRole
-}
-
 type AuthState = {
   accessToken: string | null
   user: AuthUser | null
-  pendingLogin: PendingLogin | null
-  setPendingLogin: (pendingLogin: PendingLogin) => void
   setSession: (payload: {
     accessToken: string
     refreshToken: string
@@ -39,12 +31,10 @@ type AuthState = {
 export const useAuthStore = create<AuthState>((set) => ({
   accessToken: getAccessToken(),
   user: getStoredUser(),
-  pendingLogin: null,
-  setPendingLogin: (pendingLogin) => set({ pendingLogin }),
   setSession: ({ accessToken, refreshToken, user }) => {
     setTokens(accessToken, refreshToken)
     localStorage.setItem(userStorageKey, JSON.stringify(user))
-    set({ accessToken, user, pendingLogin: null })
+    set({ accessToken, user })
   },
   setUser: (user) => {
     if (user) {
@@ -57,6 +47,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     clearTokens()
     localStorage.removeItem(userStorageKey)
-    set({ accessToken: null, user: null, pendingLogin: null })
+    set({ accessToken: null, user: null })
   },
 }))
