@@ -46,13 +46,13 @@ export function TaxiParkOrdersPage() {
         </div>
         <Select value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="">Все статусы</option>
-          <option value="created">Создан</option>
-          <option value="assigned">Водитель назначен</option>
-          <option value="driver_arriving">Водитель едет</option>
-          <option value="driver_waiting">Водитель ожидает</option>
-          <option value="trip_started">Поездка началась</option>
-          <option value="completed">Завершен</option>
-          <option value="cancelled">Отменен</option>
+          <option value="created">{statusLabel('created')}</option>
+          <option value="assigned">{statusLabel('assigned')}</option>
+          <option value="driver_arriving">{statusLabel('driver_arriving')}</option>
+          <option value="driver_waiting">{statusLabel('driver_waiting')}</option>
+          <option value="trip_started">{statusLabel('trip_started')}</option>
+          <option value="completed">{statusLabel('completed')}</option>
+          <option value="cancelled">{statusLabel('cancelled')}</option>
         </Select>
         <Input
           type="number"
