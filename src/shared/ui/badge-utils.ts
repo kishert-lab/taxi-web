@@ -9,7 +9,14 @@ export function statusVariant(status?: string): BadgeVariant {
     return 'danger'
   }
 
-  if (status === 'busy' || status === 'paused' || status === 'pending' || status === 'pending_verification' || status === 'draft') {
+  if (
+    status === 'busy' ||
+    status === 'paused' ||
+    status === 'pending' ||
+    status === 'pending_verification' ||
+    status === 'draft' ||
+    status === 'no_drivers_found'
+  ) {
     return 'warning'
   }
 
@@ -44,6 +51,7 @@ const statusLabels: Record<string, string> = {
   rejected: 'Отклонен',
   archived: 'Архив',
   draft: 'Черновик',
+  no_drivers_found: 'Водители не найдены',
 }
 
 export function statusLabel(status?: string | null) {
