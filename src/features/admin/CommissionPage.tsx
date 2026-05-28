@@ -7,6 +7,7 @@ import { z } from 'zod'
 import type { CommissionRule } from '../../entities/types'
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
+import { statusLabel } from '../../shared/ui/badge-utils'
 import { Button } from '../../shared/ui/Button'
 import { Card } from '../../shared/ui/Card'
 import { DataTable } from '../../shared/ui/DataTable'
@@ -69,7 +70,7 @@ export function CommissionPage() {
           { key: 'scope', title: 'Уровень', sortable: true },
           { key: 'priority', title: 'Приоритет', sortable: true },
           { key: 'basis_points', title: 'Комиссия', render: (row) => `${basisPointsToPercent(row.basis_points)}%` },
-          { key: 'is_active', title: 'Статус', render: (row) => <Badge variant={row.is_active ? 'success' : 'muted'}>{row.is_active ? 'active' : 'inactive'}</Badge> },
+          { key: 'is_active', title: 'Статус', render: (row) => <Badge variant={row.is_active ? 'success' : 'muted'}>{row.is_active ? statusLabel('active') : statusLabel('inactive')}</Badge> },
         ]}
       />
     </div>
@@ -93,7 +94,7 @@ function CommissionForm({ onSubmit, isSaving }: { onSubmit: (values: FormValues)
       </Select>
       <Input placeholder="target_id для city/tariff/taxi_park/driver" {...register('target_id')} />
       <Input type="number" step="0.01" placeholder="%" {...register('percent')} />
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" {...register('is_active')} /> active</label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" {...register('is_active')} /> {statusLabel('active')}</label>
       <Button type="submit" disabled={isSaving}>Сохранить</Button>
       {Object.values(formState.errors)[0]?.message ? <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700 md:col-span-5">{String(Object.values(formState.errors)[0]?.message)}</div> : null}
     </form>

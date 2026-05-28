@@ -6,6 +6,7 @@ import { Card } from './Card'
 import { Input } from './Input'
 import { Select } from './Select'
 import { EmptyState, Table } from './Table'
+import { statusLabel } from './badge-utils'
 
 export type DataTableColumn<T> = {
   key: keyof T | string
@@ -76,7 +77,7 @@ export function DataTable<T extends { id: string }>({
           <option value="">Все статусы</option>
           {statusOptions.map((option) => (
             <option key={option} value={option}>
-              {option}
+              {statusLabel(option)}
             </option>
           ))}
         </Select>

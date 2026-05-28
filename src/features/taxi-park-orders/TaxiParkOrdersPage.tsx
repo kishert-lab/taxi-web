@@ -1,39 +1,58 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import toast from 'react-hot-toast'
+import { useNavigate } from 'react-router-dom'
 
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
-import { statusVariant } from '../../shared/ui/badge-utils'
+import { statusLabel, statusVariant } from '../../shared/ui/badge-utils'
+import { Button } from '../../shared/ui/Button'
 import { Card } from '../../shared/ui/Card'
 import { Input } from '../../shared/ui/Input'
+import { Skeleton } from '../../shared/ui/Loader'
 import { Select } from '../../shared/ui/Select'
 import { EmptyState, Table } from '../../shared/ui/Table'
-import { Skeleton } from '../../shared/ui/Loader'
 import { formatDate } from '../../shared/utils/format-date'
 import { formatMoneyCents } from '../../shared/utils/format-money'
-import { getTaxiParkOrders } from './api'
+import { createTaxiParkOrder, getTaxiParkOrders } from './api'
+import { TaxiParkOrderCreateModal } from './TaxiParkOrderCreateModal'
 
 export function TaxiParkOrdersPage() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [status, setStatus] = useState('')
   const [limit, setLimit] = useState(50)
+  const [createOpen, setCreateOpen] = useState(false)
   const orders = useQuery({
     queryKey: ['taxi-park-orders', status, limit],
     queryFn: () => getTaxiParkOrders({ status: status || undefined, limit }),
   })
+  const createMutation = useMutation({
+    mutationFn: createTaxiParkOrder,
+    onSuccess: () => {
+      toast.success('Заказ создан')
+      setCreateOpen(false)
+      void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error)),
+  })
 
   return (
     <div className="space-y-4">
-      <Card className="grid gap-3 md:grid-cols-[1fr_220px_140px] md:items-end">
+      <Card className="grid gap-3 md:grid-cols-[1fr_220px_140px_auto] md:items-end">
         <div>
           <h2 className="text-lg font-bold text-slate-950">Заказы</h2>
           <p className="text-sm text-slate-500">Фильтрация по статусу и лимиту</p>
         </div>
         <Select value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="">Все статусы</option>
-          <option value="created">created</option>
-          <option value="assigned">assigned</option>
-          <option value="completed">completed</option>
-          <option value="cancelled">cancelled</option>
+          <option value="created">Создан</option>
+          <option value="assigned">Водитель назначен</option>
+          <option value="driver_arriving">Водитель едет</option>
+          <option value="driver_waiting">Водитель ожидает</option>
+          <option value="trip_started">Поездка началась</option>
+          <option value="completed">Завершен</option>
+          <option value="cancelled">Отменен</option>
         </Select>
         <Input
           type="number"
@@ -41,10 +60,15 @@ export function TaxiParkOrdersPage() {
           value={limit}
           onChange={(event) => setLimit(Number(event.target.value))}
         />
+        <Button type="button" onClick={() => setCreateOpen(true)}>
+          Создать заказ
+        </Button>
       </Card>
+
       {orders.isLoading ? <Skeleton className="h-64" /> : null}
       {orders.isError ? <Card className="text-red-700">{getApiErrorMessage(orders.error)}</Card> : null}
       {orders.data?.length === 0 ? <EmptyState title="Заказы не найдены" /> : null}
+
       {orders.data?.length ? (
         <Card>
           <Table>
@@ -59,12 +83,20 @@ export function TaxiParkOrdersPage() {
             </thead>
             <tbody>
               {orders.data.map((order) => (
-                <tr key={order.id} className="hover:bg-slate-50">
+                <tr
+                  key={order.id}
+                  className="cursor-pointer hover:bg-slate-50"
+                  onClick={() => navigate(`/taxi-park/orders/${order.id}`)}
+                >
                   <td className="border-b border-slate-100 p-3">
-                    <Badge variant={statusVariant(order.status)}>{order.status}</Badge>
+                    <Badge variant={statusVariant(order.status)}>{statusLabel(order.status)}</Badge>
                   </td>
-                  <td className="border-b border-slate-100 p-3">{order.driver_name ?? order.driver_id ?? '—'}</td>
-                  <td className="border-b border-slate-100 p-3">{formatMoneyCents(order.gross_amount ?? order.total_price ?? order.price)}</td>
+                  <td className="border-b border-slate-100 p-3">
+                    {order.driver_name ?? order.driver_id ?? '-'}
+                  </td>
+                  <td className="border-b border-slate-100 p-3">
+                    {formatMoneyCents(order.gross_amount ?? order.total_price ?? order.price)}
+                  </td>
                   <td className="border-b border-slate-100 p-3">{formatDate(order.created_at)}</td>
                   <td className="border-b border-slate-100 p-3">{formatDate(order.completed_at)}</td>
                 </tr>
@@ -73,6 +105,13 @@ export function TaxiParkOrdersPage() {
           </Table>
         </Card>
       ) : null}
+
+      <TaxiParkOrderCreateModal
+        open={createOpen}
+        isSaving={createMutation.isPending}
+        onClose={() => setCreateOpen(false)}
+        onSubmit={(payload) => createMutation.mutate(payload)}
+      />
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom'
 
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
-import { statusVariant } from '../../shared/ui/badge-utils'
+import { statusLabel, statusVariant } from '../../shared/ui/badge-utils'
 import { Button } from '../../shared/ui/Button'
 import { Card, StatCard } from '../../shared/ui/Card'
 import { Loader } from '../../shared/ui/Loader'
@@ -35,7 +35,7 @@ export function OrderDetailPage() {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard title="Статус" value={order.data.status} />
+        <StatCard title="Статус" value={statusLabel(order.data.status)} />
         <StatCard title="Сумма" value={formatMoneyCents(order.data.price)} />
         <StatCard title="Комиссия" value={formatMoneyCents(order.data.platform_commission)} />
         <StatCard title="Создан" value={formatDate(order.data.created_at)} />
@@ -49,7 +49,7 @@ export function OrderDetailPage() {
             <p><b>Город:</b> {order.data.city_name}</p>
             <p><b>Тариф:</b> {order.data.tariff_name}</p>
             <p><b>Водитель:</b> {order.data.driver_name ?? 'не назначен'}</p>
-            <Badge variant={statusVariant(order.data.status)}>{order.data.status}</Badge>
+            <Badge variant={statusVariant(order.data.status)}>{statusLabel(order.data.status)}</Badge>
           </div>
           <form
             className="flex min-w-72 gap-2"

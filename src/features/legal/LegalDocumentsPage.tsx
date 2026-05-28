@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
+import { statusLabel } from '../../shared/ui/badge-utils'
 import { Button } from '../../shared/ui/Button'
 import { Card } from '../../shared/ui/Card'
 import { Skeleton } from '../../shared/ui/Loader'
@@ -107,7 +108,7 @@ export function LegalDocumentsPage() {
                   <td className="border-b border-slate-100 p-3">{document.language}</td>
                   <td className="border-b border-slate-100 p-3">
                     <Badge variant={document.is_active ? 'success' : 'muted'}>
-                      {document.is_active ? 'active' : 'inactive'}
+                      {document.is_active ? statusLabel('active') : statusLabel('inactive')}
                     </Badge>
                   </td>
                   <td className="border-b border-slate-100 p-3">{formatDate(document.created_at)}</td>
