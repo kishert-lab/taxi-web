@@ -9,6 +9,7 @@ import { z } from 'zod'
 import type { Tariff } from '../../entities/types'
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
+import { statusLabel } from '../../shared/ui/badge-utils'
 import { Button } from '../../shared/ui/Button'
 import { Card } from '../../shared/ui/Card'
 import { DataTable } from '../../shared/ui/DataTable'
@@ -76,7 +77,7 @@ export function TariffsAdminPage() {
           { key: 'minimum_price_cents', title: 'Минимум', render: (row) => formatMoneyCents(row.minimum_price_cents) },
           { key: 'price_per_km_cents', title: 'Км', render: (row) => formatMoneyCents(row.price_per_km_cents) },
           { key: 'price_per_minute_cents', title: 'Минута', render: (row) => formatMoneyCents(row.price_per_minute_cents) },
-          { key: 'is_active', title: 'Статус', render: (row) => <Badge variant={row.is_active ? 'success' : 'muted'}>{row.is_active ? 'active' : 'inactive'}</Badge> },
+          { key: 'is_active', title: 'Статус', render: (row) => <Badge variant={row.is_active ? 'success' : 'muted'}>{row.is_active ? statusLabel('active') : statusLabel('inactive')}</Badge> },
         ]}
       />
       <Modal title="Форма тарифа" open={open} onClose={() => setOpen(false)}>

@@ -17,7 +17,7 @@ import type {
 } from '../../entities/types'
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
-import { statusVariant } from '../../shared/ui/badge-utils'
+import { statusLabel, statusVariant } from '../../shared/ui/badge-utils'
 import { Button } from '../../shared/ui/Button'
 import { Card, StatCard } from '../../shared/ui/Card'
 import { ConfirmModal } from '../../shared/ui/ConfirmModal'
@@ -100,7 +100,7 @@ export function OrdersPage() {
       }
       columns={[
         { key: 'id', title: 'ID', sortable: true, render: (row) => <Link className="font-mono text-[#F59E0B]" to={`/orders/${row.id}`}>{row.id}</Link> },
-        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge> },
+        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
         { key: 'passenger_name', title: 'Пассажир', sortable: true },
         { key: 'driver_name', title: 'Водитель', render: (row) => row.driver_name ?? '—' },
         { key: 'price', title: 'Сумма', render: (row) => formatMoneyCents(row.price) },
@@ -123,7 +123,7 @@ export function DriversPage() {
         { key: 'full_name', title: 'ФИО', sortable: true, render: (row) => <Link className="text-[#F59E0B]" to={`/drivers/${row.id}`}>{row.full_name}</Link> },
         { key: 'phone', title: 'Телефон' },
         { key: 'rating', title: 'Рейтинг', sortable: true },
-        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge> },
+        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
         { key: 'balance', title: 'Баланс', render: (row) => formatMoneyCents(row.balance) },
       ]}
     />
@@ -145,7 +145,7 @@ export function CarsPage() {
         { key: 'plate_number', title: 'Госномер' },
         { key: 'color', title: 'Цвет' },
         { key: 'year', title: 'Год', sortable: true },
-        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge> },
+        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
       ]}
     />
   )
@@ -164,7 +164,7 @@ export function PassengersPage() {
         { key: 'full_name', title: 'ФИО', sortable: true },
         { key: 'phone', title: 'Телефон' },
         { key: 'orders_count', title: 'Заказы', sortable: true },
-        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge> },
+        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
         { key: 'created_at', title: 'Создан', render: (row) => formatDate(row.created_at) },
       ]}
     />
@@ -186,7 +186,7 @@ export function TaxiParksPage() {
         { key: 'city_name', title: 'Город', sortable: true },
         { key: 'drivers_count', title: 'Водители', sortable: true },
         { key: 'balance', title: 'Баланс', render: (row) => formatMoneyCents(row.balance) },
-        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge> },
+        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
       ]}
     />
   )
@@ -205,7 +205,7 @@ export function FinancePage() {
         { key: 'type', title: 'Тип', sortable: true },
         { key: 'subject_name', title: 'Субъект' },
         { key: 'amount', title: 'Сумма', render: (row) => formatMoneyCents(row.amount) },
-        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge> },
+        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
         { key: 'created_at', title: 'Дата', render: (row) => formatDate(row.created_at) },
       ]}
     />
@@ -227,7 +227,7 @@ export function PayoutsPage() {
           { key: 'recipient_name', title: 'Получатель', sortable: true },
           { key: 'recipient_type', title: 'Тип' },
           { key: 'amount', title: 'Сумма', render: (row) => formatMoneyCents(row.amount) },
-          { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge> },
+          { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
           { key: 'id', title: '', render: (row) => <Button type="button" variant="secondary" onClick={() => setConfirmId(row.id)}>Выплатить</Button> },
         ]}
       />
@@ -262,7 +262,7 @@ export function SupportPage() {
       columns={[
         { key: 'subject', title: 'Тема', sortable: true },
         { key: 'requester_name', title: 'Заявитель' },
-        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{row.status}</Badge> },
+        { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
         { key: 'created_at', title: 'Создан', render: (row) => formatDate(row.created_at) },
       ]}
     />
@@ -334,7 +334,7 @@ function SimplePage<T extends { id: string }>({
       columns={[
         { key: 'id', title: 'ID', sortable: true },
         { key: 'name', title: 'Название', sortable: true },
-        { key: 'status', title: 'Статус', render: (row) => ('status' in row ? <Badge variant={statusVariant(String(row.status))}>{String(row.status)}</Badge> : '—') },
+        { key: 'status', title: 'Статус', render: (row) => ('status' in row ? <Badge variant={statusVariant(String(row.status))}>{statusLabel(String(row.status))}</Badge> : '—') },
       ]}
     />
   )

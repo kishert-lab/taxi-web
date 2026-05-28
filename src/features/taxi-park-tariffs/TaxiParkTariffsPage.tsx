@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
+import { statusLabel } from '../../shared/ui/badge-utils'
 import { Button } from '../../shared/ui/Button'
 import { Card } from '../../shared/ui/Card'
 import { Skeleton } from '../../shared/ui/Loader'
@@ -87,7 +88,9 @@ export function TaxiParkTariffsPage() {
                   <td className="border-b border-slate-100 p-3">{formatMoneyCents(tariff.price_per_km_cents)}</td>
                   <td className="border-b border-slate-100 p-3">{formatMoneyCents(tariff.price_per_minute_cents)}</td>
                   <td className="border-b border-slate-100 p-3">
-                    <Badge variant={tariff.is_active ? 'success' : 'muted'}>{tariff.is_active ? 'active' : 'inactive'}</Badge>
+                    <Badge variant={tariff.is_active ? 'success' : 'muted'}>
+                      {tariff.is_active ? statusLabel('active') : statusLabel('inactive')}
+                    </Badge>
                   </td>
                   <td className="border-b border-slate-100 p-3">
                     <div className="flex justify-end gap-2">

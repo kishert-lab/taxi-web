@@ -2,6 +2,18 @@ import { http } from '../../shared/api/http'
 import type { ApiResponse } from '../../shared/api/types'
 
 export type TaxiParkSettings = {
+  city_id?: string
+  city?: {
+    id: string
+    name: string
+    region?: string
+    country_code?: string
+    timezone?: string
+    center?: {
+      latitude: number
+      longitude: number
+    }
+  }
   display_name: string
   short_name: string
   legal_name: string

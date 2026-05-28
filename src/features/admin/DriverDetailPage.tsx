@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom'
 import type { DriverDocument } from '../../entities/types'
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { Badge } from '../../shared/ui/Badge'
-import { statusVariant } from '../../shared/ui/badge-utils'
+import { statusLabel, statusVariant } from '../../shared/ui/badge-utils'
 import { Button } from '../../shared/ui/Button'
 import { Card, StatCard } from '../../shared/ui/Card'
 import { ConfirmModal } from '../../shared/ui/ConfirmModal'
@@ -39,7 +39,7 @@ export function DriverDetailPage() {
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard title="Рейтинг" value={driver.data.rating.toFixed(2)} />
-        <StatCard title="Статус" value={driver.data.status} />
+        <StatCard title="Статус" value={statusLabel(driver.data.status)} />
         <StatCard title="Баланс" value={formatMoneyCents(driver.data.balance)} />
         <StatCard title="Добавлен" value={formatDate(driver.data.created_at)} />
       </div>
@@ -54,7 +54,7 @@ export function DriverDetailPage() {
             <div key={document.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="font-medium">{document.type}</div>
-                <Badge variant={statusVariant(document.status)}>{document.status}</Badge>
+                <Badge variant={statusVariant(document.status)}>{statusLabel(document.status)}</Badge>
                 {document.comment ? <p className="mt-1 text-sm text-red-600">{document.comment}</p> : null}
               </div>
               <div className="flex gap-2">
@@ -68,7 +68,7 @@ export function DriverDetailPage() {
       <ConfirmModal
         open={Boolean(moderation)}
         title="Модерация документа"
-        description={`Изменить статус документа на ${moderation?.status}?`}
+        description={`Изменить статус документа на ${statusLabel(moderation?.status)}?`}
         onCancel={() => setModeration(null)}
         onConfirm={() => moderation && mutation.mutate(moderation)}
       />

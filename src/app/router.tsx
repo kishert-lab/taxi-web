@@ -10,6 +10,7 @@ import { PublicLegalDocumentPage } from '../features/legal/PublicLegalDocumentPa
 import { TaxiParkCarsPage } from '../features/taxi-park-cars/TaxiParkCarsPage'
 import { TaxiParkDriversPage } from '../features/taxi-park-drivers/TaxiParkDriversPage'
 import { TaxiParkOrdersPage } from '../features/taxi-park-orders/TaxiParkOrdersPage'
+import { TaxiParkOrderDetailsPage } from '../features/taxi-park-orders/TaxiParkOrderDetailsPage'
 import { TaxiParkSettingsPage } from '../features/taxi-park-settings/TaxiParkSettingsPage'
 import { TaxiParkTariffsPage } from '../features/taxi-park-tariffs/TaxiParkTariffsPage'
 import { AuthGuard, RoleGuard } from '../shared/auth/guards'
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
               { path: '/taxi-park/drivers', element: <TaxiParkDriversPage /> },
               { path: '/taxi-park/cars', element: <TaxiParkCarsPage /> },
               { path: '/taxi-park/orders', element: <TaxiParkOrdersPage /> },
+              { path: '/taxi-park/orders/:orderId', element: <TaxiParkOrderDetailsPage /> },
             ],
           },
           {
