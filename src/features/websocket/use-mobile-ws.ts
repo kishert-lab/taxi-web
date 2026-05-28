@@ -96,7 +96,7 @@ export function useWebSocket() {
       }
 
       if (driverStatusEventNames.has(eventName ?? '')) {
-        const statusUpdate = normalizeDriverStatusEvent(event.payload)
+        const statusUpdate = normalizeDriverStatusEvent(event.payload, eventName)
 
         if (statusUpdate) {
           queryClient.setQueryData<DriverLocationCache>(
@@ -164,12 +164,16 @@ const driverStatusEventNames = new Set([
   'driver.online',
   'driver.offline',
   'driver.paused',
+  'driver.status.online',
+  'driver.status.offline',
   'driver.status_updated',
   'driver.status.updated',
-  'driver.line_started',
+  'driver.line.started',
   'driver.line.stopped',
   'driver.line_started',
   'driver.line_stopped',
+  'driver.went_online',
+  'driver.went_offline',
 ])
 
 const chatEventNames = new Set([
@@ -220,12 +224,22 @@ function normalizeDriverLocationEvent(payload: unknown): DriverLocationSnapshot 
   }
 }
 
-function normalizeDriverStatusEvent(payload: unknown) {
+function normalizeDriverStatusEvent(payload: unknown, eventName?: string) {
   if (!payload || typeof payload !== 'object') return null
 
   const data = payload as Record<string, unknown>
-  const driverId = stringValue(data.driver_id) ?? stringValue(data.driverId) ?? stringValue(data.id)
-  const status = stringValue(data.status)
+  const driver = data.driver as Record<string, unknown> | undefined
+  const driverId =
+    stringValue(data.driver_id) ??
+    stringValue(data.driverId) ??
+    stringValue(data.id) ??
+    stringValue(driver?.driver_id) ??
+    stringValue(driver?.driverId) ??
+    stringValue(driver?.id)
+  const status =
+    stringValue(data.status) ??
+    stringValue(driver?.status) ??
+    inferDriverStatusFromEventName(eventName)
 
   if (!driverId || !status) return null
 
@@ -241,6 +255,34 @@ function normalizeDriverStatusEvent(payload: unknown) {
       stringValue(data.updatedAt) ??
       new Date().toISOString(),
   }
+}
+
+function inferDriverStatusFromEventName(eventName?: string) {
+  if (!eventName) return undefined
+
+  if (
+    eventName === 'driver.offline' ||
+    eventName === 'driver.status.offline' ||
+    eventName === 'driver.line.stopped' ||
+    eventName === 'driver.line_stopped' ||
+    eventName === 'driver.went_offline'
+  ) {
+    return 'offline'
+  }
+
+  if (
+    eventName === 'driver.online' ||
+    eventName === 'driver.status.online' ||
+    eventName === 'driver.line.started' ||
+    eventName === 'driver.line_started' ||
+    eventName === 'driver.went_online'
+  ) {
+    return 'online'
+  }
+
+  if (eventName === 'driver.paused') return 'paused'
+
+  return undefined
 }
 
 function getEventName(event: WebSocketEvent) {
