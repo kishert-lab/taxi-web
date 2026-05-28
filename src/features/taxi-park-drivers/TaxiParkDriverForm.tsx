@@ -4,6 +4,7 @@ import { useForm, type UseFormRegisterReturn } from 'react-hook-form'
 import { z } from 'zod'
 
 import { Button } from '../../shared/ui/Button'
+import { statusLabel } from '../../shared/ui/badge-utils'
 import { Input } from '../../shared/ui/Input'
 import { Select } from '../../shared/ui/Select'
 import { Textarea } from '../../shared/ui/Textarea'
@@ -151,7 +152,7 @@ export function TaxiParkDriverForm({
             <Select {...register('verification_status')} disabled={isEditing}>
               {verificationStatuses.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {statusLabel(status)}
                 </option>
               ))}
             </Select>
