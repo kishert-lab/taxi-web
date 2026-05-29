@@ -2,8 +2,9 @@ services:
   taxi-web:
     build:
       context: .
+    image: registry.dev.it59com.ru/taxi-platform/taxi-web:latest
     ports:
       - "5173:80"
     environment:
-      - VITE_API_BASE_URL=http://localhost:8080/api/v1
-      - VITE_WS_URL=ws://localhost:8080/ws
+      - VITE_API_BASE_URL=https://taxi.wkfc.online/api/v1
+      - VITE_WS_URL=wss://taxi.wkfc.online/ws
