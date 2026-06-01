@@ -15,7 +15,7 @@ import { login } from './api'
 const schema = z.object({
   phone: z.string().min(6, 'Введите телефон'),
   password: z.string().min(1, 'Введите пароль'),
-  role: z.enum(['admin', 'taxi_park', 'dispatcher', 'driver', 'passenger']),
+  role: z.enum(['taxi_park', 'dispatcher', 'driver', 'passenger']),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -29,7 +29,7 @@ export function LoginPage() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { role: 'admin' },
+    defaultValues: { role: 'taxi_park' },
   })
 
   const mutation = useMutation({
@@ -76,11 +76,10 @@ export function LoginPage() {
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-slate-700">Роль</span>
             <Select {...register('role')}>
-              <option value="admin">admin</option>
-              <option value="taxi_park">taxi_park</option>
-              <option value="dispatcher">dispatcher</option>
-              <option value="driver">driver</option>
-              <option value="passenger">passenger</option>
+              <option value="taxi_park">Таксопарк</option>
+              <option value="dispatcher">Диспетчер</option>
+              <option value="driver">Водитель</option>
+              <option value="passenger">Пассажир</option>
             </Select>
           </label>
           {mutation.isError ? (

@@ -8,10 +8,7 @@ import { Skeleton } from '../../shared/ui/Loader'
 import { EmptyState, Table } from '../../shared/ui/Table'
 import { formatDate } from '../../shared/utils/format-date'
 import { formatMoneyCents } from '../../shared/utils/format-money'
-import { basisPointsToPercent } from '../../shared/utils/format-money'
-import { Badge } from '../../shared/ui/Badge'
 import { statusLabel } from '../../shared/ui/badge-utils'
-import { getTaxiParkSettings } from '../taxi-park-settings/api'
 import {
   getAdminFinanceOverview,
   getDriverBalance,
@@ -82,21 +79,20 @@ function AdminDashboard() {
 }
 
 function TaxiParkDashboard() {
-  const [balance, orders, drivers, transactions, settings] = useQueries({
+  const [balance, orders, drivers, transactions] = useQueries({
     queries: [
       { queryKey: ['taxi-park-balance'], queryFn: getTaxiParkBalance },
       { queryKey: ['taxi-park-orders', '', 10], queryFn: () => getTaxiParkOrders({ limit: 10 }) },
       { queryKey: ['taxi-park-drivers', ''], queryFn: () => getTaxiParkDrivers() },
       { queryKey: ['taxi-park-transactions'], queryFn: getTaxiParkTransactions },
-      { queryKey: ['taxi-park-settings'], queryFn: getTaxiParkSettings },
     ],
   })
 
-  if ([balance, orders, drivers, transactions, settings].some((query) => query.isLoading)) {
+  if ([balance, orders, drivers, transactions].some((query) => query.isLoading)) {
     return <Skeleton className="h-80" />
   }
 
-  const firstError = [balance, orders, drivers, transactions, settings].find((query) => query.isError)
+  const firstError = [balance, orders, drivers, transactions].find((query) => query.isError)
   if (firstError?.error) return <Card className="text-red-700">{getApiErrorMessage(firstError.error)}</Card>
 
   return (
@@ -107,7 +103,6 @@ function TaxiParkDashboard() {
         <StatCard title="Водители" value={drivers.data?.length ?? 0} />
         <StatCard title="Транзакции" value={transactions.data?.length ?? 0} />
       </div>
-      <TaxiParkInfoCard settings={settings.data} />
       <TaxiParkFleetMap drivers={drivers.data ?? []} />
       <Card>
         <h2 className="mb-4 text-lg font-bold text-slate-950">Последние заказы</h2>
@@ -127,52 +122,6 @@ function TaxiParkDashboard() {
           <EmptyState title="Заказы не найдены" />
         )}
       </Card>
-    </div>
-  )
-}
-
-function TaxiParkInfoCard({
-  settings,
-}: {
-  settings: Awaited<ReturnType<typeof getTaxiParkSettings>> | undefined
-}) {
-  if (!settings) return null
-
-  return (
-    <Card>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-950">
-              {settings.display_name || settings.legal_name || 'Таксопарк'}
-            </h2>
-            <Badge variant={settings.is_active ? 'success' : 'danger'}>
-              {settings.is_active ? statusLabel('active') : statusLabel('inactive')}
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {settings.city?.name ?? 'Город не указан'}
-            {settings.city?.region ? `, ${settings.city.region}` : ''}
-          </p>
-        </div>
-        <div className="grid gap-3 text-sm text-slate-700 md:grid-cols-2 lg:min-w-[520px]">
-          <InfoItem label="Короткое имя" value={settings.short_name || '-'} />
-          <InfoItem label="Комиссия" value={`${basisPointsToPercent(settings.commission_basis_points)}%`} />
-          <InfoItem label="Телефон поддержки" value={settings.support_phone || '-'} />
-          <InfoItem label="Email поддержки" value={settings.support_email || '-'} />
-          <InfoItem label="Сайт" value={settings.website || '-'} />
-          <InfoItem label="Часовой пояс" value={settings.city?.timezone || '-'} />
-        </div>
-      </div>
-    </Card>
-  )
-}
-
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase text-slate-400">{label}</p>
-      <p className="mt-1 font-medium text-slate-800">{value}</p>
     </div>
   )
 }
