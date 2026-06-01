@@ -17,6 +17,7 @@ export function getApiErrorMessage(error: unknown) {
     const code = apiError?.error?.code
     const details = apiError?.error?.details
     const constraint = typeof details?.constraint === 'string' ? details.constraint : undefined
+    const fields = details?.fields
 
     if (constraint && constraintMessages[constraint]) {
       return constraintMessages[constraint]
@@ -24,6 +25,14 @@ export function getApiErrorMessage(error: unknown) {
 
     if (code && codeMessages[code]) {
       return codeMessages[code]
+    }
+
+    if (fields && typeof fields === 'object') {
+      const fieldsText = Object.entries(fields)
+        .map(([field, value]) => `${field}: ${String(value)}`)
+        .join('; ')
+
+      return `${apiError?.error?.message ?? error.message}. ${fieldsText}`
     }
 
     if (details && Object.keys(details).length > 0) {
