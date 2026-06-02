@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
@@ -17,6 +17,8 @@ import { Skeleton } from '../../shared/ui/Loader'
 import { Textarea } from '../../shared/ui/Textarea'
 import { formatDate } from '../../shared/utils/format-date'
 import { formatMoneyCents, rublesToCents } from '../../shared/utils/format-money'
+import { AddressSearchInput } from '../geocoder/AddressSearchInput'
+import { getTaxiParkSettings } from '../taxi-park-settings/api'
 import {
   cancelTaxiParkOrder,
   completeTaxiParkOrder,
@@ -58,6 +60,10 @@ export function TaxiParkOrderDetailsPage() {
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
   })
+  const settings = useQuery({
+    queryKey: ['taxi-park-settings'],
+    queryFn: getTaxiParkSettings,
+  })
   const editForm = useForm<EditValues, unknown, EditSubmitValues>({
     resolver: zodResolver(editSchema),
   })
@@ -67,6 +73,10 @@ export function TaxiParkOrderDetailsPage() {
   })
   const completeForm = useForm<CompleteValues, unknown, CompleteSubmitValues>({
     resolver: zodResolver(completeSchema),
+  })
+  const destinationAddress = useWatch({
+    control: editForm.control,
+    name: 'destination_address',
   })
 
   useEffect(() => {
@@ -165,11 +175,39 @@ export function TaxiParkOrderDetailsPage() {
           <Card>
             <form className="space-y-3" onSubmit={editForm.handleSubmit((values) => updateMutation.mutate(values))}>
               <h2 className="text-lg font-bold text-slate-950">Изменить конечную точку</h2>
-              <Input {...editForm.register('destination_address')} placeholder="Ленина 50" />
-              <div className="grid gap-3 md:grid-cols-2">
-                <Input {...editForm.register('destination_latitude')} type="number" step="0.000001" />
-                <Input {...editForm.register('destination_longitude')} type="number" step="0.000001" />
-              </div>
+              <AddressSearchInput
+                value={destinationAddress ?? ''}
+                cityId={settings.data?.city_id}
+                placeholder="Ленина 50"
+                error={
+                  editForm.formState.errors.destination_latitude?.message ||
+                  editForm.formState.errors.destination_longitude?.message
+                    ? 'Выберите адрес из подсказки'
+                    : editForm.formState.errors.destination_address?.message
+                }
+                onAddressChange={(value) => {
+                  editForm.setValue('destination_address', value, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                  editForm.setValue('destination_latitude', undefined, { shouldDirty: true })
+                  editForm.setValue('destination_longitude', undefined, { shouldDirty: true })
+                }}
+                onSelectPoint={(point) => {
+                  editForm.setValue('destination_address', point.address, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                  editForm.setValue('destination_latitude', point.location.latitude, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                  editForm.setValue('destination_longitude', point.location.longitude, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }}
+              />
               <Textarea {...editForm.register('comment')} placeholder="Комментарий диспетчера" />
               <Button type="submit" disabled={updateMutation.isPending}>
                 Сохранить

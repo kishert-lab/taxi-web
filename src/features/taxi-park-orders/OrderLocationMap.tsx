@@ -100,7 +100,7 @@ export function OrderLocationMap({
           </Button>
         </div>
         <p className="text-sm text-slate-500">
-          Клик по карте ставит выбранную точку и заполняет координаты.
+          Клик по карте ставит выбранную точку. Адрес вводится в полях выше.
         </p>
       </div>
 

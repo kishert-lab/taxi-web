@@ -15,6 +15,9 @@ export function TaxiParkSettingsPage() {
   })
   const mutation = useMutation({
     mutationFn: updateTaxiParkSettings,
+    onMutate: (pas) => {
+      console.log(pas)
+    },
     onSuccess: () => {
       toast.success('Настройки сохранены')
       void queryClient.invalidateQueries({ queryKey: ['taxi-park-settings'] })
@@ -25,7 +28,7 @@ export function TaxiParkSettingsPage() {
   if (settings.isLoading) return <Skeleton className="h-96" />
   if (settings.isError) return <Card className="text-red-700">{getApiErrorMessage(settings.error)}</Card>
   if (!settings.data) return null
-
+  
   return (
     <Card>
       <TaxiParkSettingsForm

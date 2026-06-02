@@ -113,11 +113,9 @@ export function TaxiParkOrderMap({ order }: { order: TaxiParkOrder }) {
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase text-slate-400">Позиция</p>
+          <p className="text-xs font-semibold uppercase text-slate-400">Геопозиция</p>
           <p className="mt-1 font-semibold text-slate-800">
-            {driverPoint
-              ? `${driverPoint.latitude.toFixed(6)}, ${driverPoint.longitude.toFixed(6)}`
-              : 'Нет актуальной геопозиции'}
+            {driverPoint ? 'Водитель отображается на карте' : 'Нет актуальной геопозиции'}
           </p>
           <p className="text-xs text-slate-500">
             {formatDate(getDriverUpdatedAt(driverLocation))}

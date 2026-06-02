@@ -134,7 +134,7 @@ function optionalText() {
 
 function toFormValues(settings: TaxiParkSettings): FormInputValues {
   const dispatch = normalizeDispatchSettings(settings.dispatch)
-
+  
   return {
     display_name: stringOrEmpty(settings.display_name),
     short_name: stringOrEmpty(settings.short_name),
@@ -156,8 +156,16 @@ function toFormValues(settings: TaxiParkSettings): FormInputValues {
     cancellation_timeout_sec: settings.cancellation_timeout_sec ?? 300,
     driver_arrival_timeout_sec: settings.driver_arrival_timeout_sec ?? 900,
     dispatch: {
-      ...dispatch,
-      radius_attempts_meters_text: dispatch.radius_attempts_meters.join(', '),
+      initial_radius_meters: dispatch.initial_radius_meters,
+      max_radius_meters: dispatch.max_radius_meters,
+      radius_step_meters: dispatch.radius_step_meters,
+      radius_attempts_meters_text: dispatch.radius_attempts_meters.join(', '), // Добавьте это!
+      max_drivers_per_offer: dispatch.max_drivers_per_offer,
+      driver_location_max_age_sec: dispatch.driver_location_max_age_sec,
+      offer_ttl_sec: dispatch.offer_ttl_sec,
+      accept_lock_ttl_sec: dispatch.accept_lock_ttl_sec,
+      worker_poll_timeout_sec: dispatch.worker_poll_timeout_sec,
+      recovery_interval_sec: dispatch.recovery_interval_sec,
     },
   }
 }
