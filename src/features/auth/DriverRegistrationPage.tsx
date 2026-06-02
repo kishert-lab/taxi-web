@@ -10,6 +10,7 @@ import { getApiErrorMessage } from '../../shared/api/errors'
 import { Button } from '../../shared/ui/Button'
 import { Card } from '../../shared/ui/Card'
 import { Input } from '../../shared/ui/Input'
+import { LegalLinks } from '../legal/LegalLinks'
 import { confirmPhone, registerDriver, type RegistrationResponse } from './api'
 
 const registrationSchema = z.object({
@@ -114,11 +115,25 @@ export function DriverRegistrationPage() {
             </Field>
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" {...registrationForm.register('personal_data_consent')} />
-              Согласие на обработку персональных данных
+              <span>
+                Даю{' '}
+                <Link className="font-semibold text-[#F59E0B]" to="/legal/consent" target="_blank">
+                  согласие на обработку персональных данных
+                </Link>
+              </span>
             </label>
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" {...registrationForm.register('terms_accepted')} />
-              Принимаю условия сервиса
+              <span>
+                Принимаю{' '}
+                <Link className="font-semibold text-[#F59E0B]" to="/legal/terms" target="_blank">
+                  пользовательское соглашение
+                </Link>{' '}
+                и{' '}
+                <Link className="font-semibold text-[#F59E0B]" to="/legal/privacy-policy" target="_blank">
+                  политику конфиденциальности
+                </Link>
+              </span>
             </label>
             <div className="md:col-span-2">
               <Button type="submit" disabled={registerMutation.isPending}>
@@ -155,6 +170,7 @@ export function DriverRegistrationPage() {
             Вернуться ко входу
           </Link>
         </div>
+        <LegalLinks className="mt-4 border-t border-slate-100 pt-4" />
       </Card>
     </div>
   )
