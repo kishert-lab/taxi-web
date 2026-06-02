@@ -10,6 +10,7 @@ import { Button } from '../../shared/ui/Button'
 import { Card } from '../../shared/ui/Card'
 import { Input } from '../../shared/ui/Input'
 import { Select } from '../../shared/ui/Select'
+import { LegalLinks } from '../legal/LegalLinks'
 import { login } from './api'
 
 const schema = z.object({
@@ -48,7 +49,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] p-4">
       <Card className="w-full max-w-md">
         <div className="mb-6">
-          <div className="text-2xl font-bold text-slate-950">Taxi Platform</div>
+          <div className="text-2xl font-bold text-slate-950">Такси Пульт</div>
           <p className="mt-2 text-sm text-slate-500">Вход в панель управления</p>
         </div>
         <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
@@ -97,6 +98,7 @@ export function LoginPage() {
             Зарегистрироваться
           </Link>
         </div>
+        <LegalLinks className="mt-4 border-t border-slate-100 pt-4" />
       </Card>
     </div>
   )

@@ -6,6 +6,7 @@ export type GeocoderPoint = {
   id?: string
   external_id?: string
   source?: string
+  provider?: string
   address: string
   name?: string
   location: CoordinatesPayload
@@ -17,7 +18,10 @@ type RawGeocoderPoint = {
   id?: string
   external_id?: string
   externalId?: string
+  external_place_id?: string
+  externalPlaceId?: string
   source?: string
+  provider?: string
   address?: string
   formatted_address?: string
   display_name?: string
@@ -36,6 +40,13 @@ type RawGeocoderPoint = {
     lng?: number | string
   }
   point?: {
+    latitude?: number | string
+    longitude?: number | string
+    lat?: number | string
+    lon?: number | string
+    lng?: number | string
+  }
+  coordinates?: {
     latitude?: number | string
     longitude?: number | string
     lat?: number | string
@@ -88,7 +99,9 @@ function getRawPoints(data: SearchResponse): RawGeocoderPoint[] {
 function normalizePoint(point: RawGeocoderPoint): GeocoderPoint | null {
   const latitude = numberValue(
     point.location?.latitude ??
-      point.location?.lat ??
+    point.location?.lat ??
+      point.coordinates?.latitude ??
+      point.coordinates?.lat ??
       point.point?.latitude ??
       point.point?.lat ??
       point.latitude ??
@@ -96,8 +109,11 @@ function normalizePoint(point: RawGeocoderPoint): GeocoderPoint | null {
   )
   const longitude = numberValue(
     point.location?.longitude ??
-      point.location?.lng ??
-      point.location?.lon ??
+    point.location?.lng ??
+    point.location?.lon ??
+      point.coordinates?.longitude ??
+      point.coordinates?.lng ??
+      point.coordinates?.lon ??
       point.point?.longitude ??
       point.point?.lng ??
       point.point?.lon ??
@@ -112,8 +128,8 @@ function normalizePoint(point: RawGeocoderPoint): GeocoderPoint | null {
 
   return {
     id: point.id,
-    external_id: point.external_id ?? point.externalId,
-    source: point.source,
+    external_id: point.external_id ?? point.externalId ?? point.external_place_id ?? point.externalPlaceId,
+    source: point.source ?? point.provider,
     address,
     name: point.name ?? point.title,
     location: { latitude, longitude },
