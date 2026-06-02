@@ -10,7 +10,10 @@ import { Textarea } from '../../shared/ui/Textarea'
 import type { LegalDocumentPayload } from './api'
 import { documentTypes } from './constants'
 import { LegalDocumentPreview } from './LegalDocumentPreview'
+import consentPersonalDataTemplate from './templates/consent_personal_data.md?raw'
+import privacyPolicyTemplate from './templates/privacy_policy.md?raw'
 import taxiParkAgreementCompliance from './templates/taxi_park_agreement_driver_compliance.md?raw'
+import termsOfServiceTemplate from './templates/terms_of_service.md?raw'
 
 const schema = z.object({
   document_type: z.enum(documentTypes),
@@ -19,6 +22,37 @@ const schema = z.object({
   title: z.string().min(1),
   content: z.string().min(1),
 })
+
+const legalTemplates = [
+  {
+    label: 'Лицензионное соглашение',
+    description: 'Публичная оферта об использовании сервиса заказа и автоматизации такси.',
+    document_type: 'terms_of_service',
+    title: 'Лицензионное соглашение',
+    content: termsOfServiceTemplate,
+  },
+  {
+    label: 'Политика конфиденциальности',
+    description: 'Политика обработки персональных данных пользователей сервиса.',
+    document_type: 'privacy_policy',
+    title: 'Политика конфиденциальности и обработки персональных данных',
+    content: privacyPolicyTemplate,
+  },
+  {
+    label: 'Согласие на обработку данных',
+    description: 'Отдельное согласие для чекбоксов регистрации и использования сервиса.',
+    document_type: 'consent_personal_data',
+    title: 'Согласие на обработку персональных данных',
+    content: consentPersonalDataTemplate,
+  },
+  {
+    label: 'Дополнение для таксопарков',
+    description: 'Ответственность за проверку водителей, автомобилей и разрешений.',
+    document_type: 'taxi_park_agreement',
+    title: 'Дополнение к лицензионному соглашению таксопарка',
+    content: taxiParkAgreementCompliance,
+  },
+] as const
 
 export function LegalDocumentForm({
   onSubmit,
@@ -43,28 +77,36 @@ export function LegalDocumentForm({
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-amber-900">
-              Шаблон дополнения для таксопарков
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <div className="mb-3">
+          <div className="text-sm font-semibold text-amber-950">Готовые юридические шаблоны</div>
+          <p className="mt-1 text-sm text-amber-800">
+            Заполните форму одним из шаблонов, затем проверьте реквизиты и создайте новую версию документа.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {legalTemplates.map((template) => (
+            <div
+              key={template.document_type}
+              className="rounded-lg border border-amber-200 bg-white/80 p-3"
+            >
+              <div className="text-sm font-semibold text-slate-900">{template.label}</div>
+              <p className="mt-1 min-h-10 text-sm text-slate-600">{template.description}</p>
+              <Button
+                className="mt-3"
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setValue('document_type', template.document_type)
+                  setValue('language', 'ru')
+                  setValue('title', template.title)
+                  setValue('content', template.content)
+                }}
+              >
+                Заполнить
+              </Button>
             </div>
-            <p className="mt-1 text-sm text-amber-800">
-              Ответственность за проверку водителей, автомобилей и разрешительных документов.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              setValue('document_type', 'taxi_park_agreement')
-              setValue('language', 'ru')
-              setValue('title', 'Дополнение к лицензионному соглашению таксопарка')
-              setValue('content', taxiParkAgreementCompliance)
-            }}
-          >
-            Заполнить
-          </Button>
+          ))}
         </div>
       </div>
 
