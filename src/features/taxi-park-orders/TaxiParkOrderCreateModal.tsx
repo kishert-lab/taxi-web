@@ -9,6 +9,7 @@ import { Input } from '../../shared/ui/Input'
 import { Modal } from '../../shared/ui/Modal'
 import { Select } from '../../shared/ui/Select'
 import { Textarea } from '../../shared/ui/Textarea'
+import { AddressSearchInput } from '../geocoder/AddressSearchInput'
 import { getTaxiParkSettings } from '../taxi-park-settings/api'
 import { getTariffs } from '../taxi-park-tariffs/api'
 import type { TaxiParkCreateOrderPayload } from './api'
@@ -67,9 +68,11 @@ export function TaxiParkOrderCreateModal({
       tariff_id: '',
     },
   })
-  const [pickupLatitude, pickupLongitude, destinationLatitude, destinationLongitude] = useWatch({
+  const [pickupAddress, destinationAddress, pickupLatitude, pickupLongitude, destinationLatitude, destinationLongitude] = useWatch({
     control,
     name: [
+      'pickup_address',
+      'destination_address',
       'pickup_latitude',
       'pickup_longitude',
       'destination_latitude',
@@ -157,22 +160,58 @@ export function TaxiParkOrderCreateModal({
 
         <section className="grid gap-4 md:grid-cols-2">
           <Field label="Адрес подачи" error={errors.pickup_address?.message}>
-            <Input {...register('pickup_address')} placeholder="Ленина 1" />
+            <AddressSearchInput
+              value={pickupAddress ?? ''}
+              cityId={settings.data?.city_id}
+              placeholder="Ленина 1"
+              error={coordinateError(errors.pickup_latitude?.message, errors.pickup_longitude?.message)}
+              onAddressChange={(value) => {
+                setValue('pickup_address', value, { shouldDirty: true, shouldValidate: true })
+                setValue('pickup_latitude', undefined, { shouldDirty: true })
+                setValue('pickup_longitude', undefined, { shouldDirty: true })
+              }}
+              onSelectPoint={(point) => {
+                setValue('pickup_address', point.address, { shouldDirty: true, shouldValidate: true })
+                setValue('pickup_latitude', point.location.latitude, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+                setValue('pickup_longitude', point.location.longitude, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }}
+            />
           </Field>
           <Field label="Адрес назначения" error={errors.destination_address?.message}>
-            <Input {...register('destination_address')} placeholder="Мира 10" />
-          </Field>
-          <Field label="Широта подачи" error={errors.pickup_latitude?.message}>
-            <Input {...register('pickup_latitude')} type="number" step="0.000001" placeholder="56.838011" />
-          </Field>
-          <Field label="Долгота подачи" error={errors.pickup_longitude?.message}>
-            <Input {...register('pickup_longitude')} type="number" step="0.000001" placeholder="60.597465" />
-          </Field>
-          <Field label="Широта назначения" error={errors.destination_latitude?.message}>
-            <Input {...register('destination_latitude')} type="number" step="0.000001" placeholder="56.840000" />
-          </Field>
-          <Field label="Долгота назначения" error={errors.destination_longitude?.message}>
-            <Input {...register('destination_longitude')} type="number" step="0.000001" placeholder="60.600000" />
+            <AddressSearchInput
+              value={destinationAddress ?? ''}
+              cityId={settings.data?.city_id}
+              placeholder="Мира 10"
+              error={coordinateError(
+                errors.destination_latitude?.message,
+                errors.destination_longitude?.message,
+              )}
+              onAddressChange={(value) => {
+                setValue('destination_address', value, { shouldDirty: true, shouldValidate: true })
+                setValue('destination_latitude', undefined, { shouldDirty: true })
+                setValue('destination_longitude', undefined, { shouldDirty: true })
+              }}
+              onSelectPoint={(point) => {
+                setValue('destination_address', point.address, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+                setValue('destination_latitude', point.location.latitude, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+                setValue('destination_longitude', point.location.longitude, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }}
+            />
           </Field>
         </section>
 
@@ -216,6 +255,10 @@ function Field({
 function normalizeString(value?: string) {
   const normalized = value?.trim()
   return normalized ? normalized : undefined
+}
+
+function coordinateError(latitudeError?: string, longitudeError?: string) {
+  return latitudeError || longitudeError ? 'Выберите адрес из подсказки' : undefined
 }
 
 function getNumericCoordinate(value: unknown) {

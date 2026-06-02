@@ -34,7 +34,7 @@ export type TaxiParkSettings = {
   cancellation_timeout_sec: number
   driver_arrival_timeout_sec: number
   is_active: boolean
-  dispatch?: TaxiParkDispatchSettings
+  dispatch: TaxiParkDispatchSettings
 }
 
 export type TaxiParkDispatchSettings = {
@@ -43,7 +43,7 @@ export type TaxiParkDispatchSettings = {
   radius_step_meters: number
   radius_attempts_meters: number[]
   max_drivers_per_offer: number
-  driver_location_max_age_sec: number
+  driver_location_max_age_sec?: number
   offer_ttl_sec: number
   accept_lock_ttl_sec: number
   worker_poll_timeout_sec: number
@@ -70,7 +70,7 @@ export type TaxiParkSettingsPayload = {
   commission_basis_points: number
   cancellation_timeout_sec: number
   driver_arrival_timeout_sec: number
-  dispatch?: TaxiParkDispatchSettings
+  dispatch: TaxiParkDispatchSettings
 }
 
 type TaxiParkSettingsResponse = Omit<
@@ -92,9 +92,17 @@ export async function getTaxiParkSettings() {
 }
 
 export async function updateTaxiParkSettings(payload: TaxiParkSettingsPayload) {
+  console.log('Payload before send:', JSON.stringify(payload, null, 2))
+   const serialized = JSON.parse(JSON.stringify(payload))
   const response = await http.patch<ApiResponse<TaxiParkSettings>>(
     '/taxi-park/settings',
-    payload,
+    serialized,
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
   )
+  console.log('Payload before return:', response.data.data)
   return response.data.data
 }
