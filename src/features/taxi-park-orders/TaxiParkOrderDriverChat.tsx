@@ -11,6 +11,7 @@ import { useAuthStore } from '../../shared/auth/auth-store'
 import { Button } from '../../shared/ui/Button'
 import { Textarea } from '../../shared/ui/Textarea'
 import { formatDate } from '../../shared/utils/format-date'
+import { useNotificationStore } from '../notifications/notification-store'
 import {
   getTaxiParkDriverChatMessages,
   sendTaxiParkDriverChatMessage,
@@ -26,6 +27,7 @@ type FormValues = z.infer<typeof schema>
 export function TaxiParkOrderDriverChat({ orderId }: { orderId: string }) {
   const queryClient = useQueryClient()
   const currentUser = useAuthStore((state) => state.user)
+  const markOrderChatRead = useNotificationStore((state) => state.markOrderChatRead)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const messages = useQuery({
     queryKey: ['taxi-park-order-driver-chat', orderId],
@@ -61,8 +63,12 @@ export function TaxiParkOrderDriverChat({ orderId }: { orderId: string }) {
     bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages.data?.messages.length])
 
+  useEffect(() => {
+    markOrderChatRead(orderId)
+  }, [markOrderChatRead, orderId])
+
   return (
-    <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+    <section id="driver-chat" className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
       <div>
         <h3 className="text-sm font-bold uppercase text-slate-500">Чат с водителем</h3>
         <p className="text-sm text-slate-500">

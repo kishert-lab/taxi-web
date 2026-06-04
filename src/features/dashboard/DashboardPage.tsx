@@ -1,4 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
+import { MessageCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import { getApiErrorMessage } from '../../shared/api/errors'
@@ -9,6 +11,7 @@ import { EmptyState, Table } from '../../shared/ui/Table'
 import { formatDate } from '../../shared/utils/format-date'
 import { formatMoneyCents } from '../../shared/utils/format-money'
 import { statusLabel } from '../../shared/ui/badge-utils'
+import { useNotificationStore } from '../notifications/notification-store'
 import {
   getAdminFinanceOverview,
   getDriverBalance,
@@ -26,7 +29,7 @@ export function DashboardPage() {
 
   if (user?.role === 'admin') return <AdminDashboard />
   if (user?.role === 'driver') return <DriverDashboard />
-  if (user?.role === 'taxi_park') return <TaxiParkDashboard />
+  if (user?.role === 'taxi_park' || user?.role === 'dispatcher') return <TaxiParkDashboard />
 
   return (
     <Card>
@@ -104,6 +107,7 @@ function TaxiParkDashboard() {
         <StatCard title="Транзакции" value={transactions.data?.length ?? 0} />
       </div>
       <TaxiParkFleetMap drivers={drivers.data ?? []} />
+      <ChatNotificationsCard />
       <Card>
         <h2 className="mb-4 text-lg font-bold text-slate-950">Последние заказы</h2>
         {orders.data?.length ? (
@@ -123,6 +127,69 @@ function TaxiParkDashboard() {
         )}
       </Card>
     </div>
+  )
+}
+
+function ChatNotificationsCard() {
+  const chatNotifications = useNotificationStore((state) => state.chatNotifications)
+  const clearChatNotifications = useNotificationStore((state) => state.clearChatNotifications)
+
+  return (
+    <Card>
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
+            <MessageCircle className="h-5 w-5 text-amber-600" />
+            Сообщения водителей
+          </h2>
+          <p className="text-sm text-slate-500">
+            История входящих сообщений с переходом в чат заказа.
+          </p>
+        </div>
+        {chatNotifications.length ? (
+          <button
+            type="button"
+            className="text-sm font-semibold text-slate-500 hover:text-slate-800"
+            onClick={clearChatNotifications}
+          >
+            Очистить
+          </button>
+        ) : null}
+      </div>
+
+      {chatNotifications.length ? (
+        <div className="space-y-2">
+          {chatNotifications.slice(0, 8).map((notification) => (
+            <Link
+              key={notification.id}
+              className="block rounded-xl border border-slate-200 bg-slate-50 p-3 hover:bg-white"
+              to={`/taxi-park/orders/${notification.orderId}#driver-chat`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">
+                    Заказ {notification.orderId}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-sm text-slate-600">
+                    {notification.body}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-slate-400">
+                  {formatDate(notification.createdAt)}
+                </span>
+              </div>
+              {notification.senderName || notification.senderRole ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  {notification.senderName ?? notification.senderRole}
+                </p>
+              ) : null}
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="Новых сообщений нет" />
+      )}
+    </Card>
   )
 }
 

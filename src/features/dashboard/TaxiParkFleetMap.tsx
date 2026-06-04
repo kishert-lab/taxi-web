@@ -255,11 +255,14 @@ function mergeFleetLocations(
     })
   })
 
-  Object.values(liveLocations).forEach((location) => {
-    const existing = byDriverId.get(location.driver_id)
-    byDriverId.set(location.driver_id, {
+  uniqueLocations(liveLocations).forEach((location) => {
+    const existingEntry = findFleetEntry(byDriverId, location)
+    const existing = existingEntry?.[1]
+    const targetDriverId = existing?.driver_id ?? location.driver_id
+
+    byDriverId.set(targetDriverId, {
       ...existing,
-      driver_id: location.driver_id,
+      driver_id: targetDriverId,
       user_id: location.user_id ?? existing?.user_id,
       name: location.name ?? existing?.name ?? location.driver_id,
       phone: location.phone ?? existing?.phone,
@@ -277,6 +280,45 @@ function mergeFleetLocations(
   return Array.from(byDriverId.values()).filter(
     (item) => item.status === 'online' || item.status === 'busy',
   )
+}
+
+function uniqueLocations(liveLocations: DriverLocationCache) {
+  const byIdentity = new Map<string, DriverLocationCache[string]>()
+
+  Object.values(liveLocations).forEach((location) => {
+    const key = location.driver_id || location.user_id
+    if (!key) return
+
+    const existing = byIdentity.get(key)
+    if (!existing || isNewerLocation(location.updated_at, existing.updated_at)) {
+      byIdentity.set(key, location)
+    }
+  })
+
+  return Array.from(byIdentity.values())
+}
+
+function findFleetEntry(
+  byDriverId: Map<string, FleetDriverLocation>,
+  location: DriverLocationCache[string],
+) {
+  return Array.from(byDriverId.entries()).find(([driverId, item]) => {
+    return (
+      driverId === location.driver_id ||
+      driverId === location.user_id ||
+      item.driver_id === location.driver_id ||
+      item.driver_id === location.user_id ||
+      item.user_id === location.driver_id ||
+      item.user_id === location.user_id
+    )
+  })
+}
+
+function isNewerLocation(next?: string, previous?: string) {
+  if (!previous) return true
+  if (!next) return false
+
+  return new Date(next).getTime() >= new Date(previous).getTime()
 }
 
 function fromSnapshot(item: TaxiParkDriverLocation): FleetDriverLocation {
