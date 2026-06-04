@@ -1,8 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { createElement } from 'react'
 import { useEffect } from 'react'
+import toast from 'react-hot-toast'
 
 import { http } from '../../shared/api/http'
 import { useAuthStore } from '../../shared/auth/auth-store'
+import { useNotificationStore } from '../notifications/notification-store'
 import { createWebSocket, type WebSocketEvent } from './ws-client'
 
 export type DriverLocationSnapshot = {
@@ -26,6 +29,8 @@ export function useWebSocket() {
   const queryClient = useQueryClient()
   const accessToken = useAuthStore((state) => state.accessToken)
   const role = useAuthStore((state) => state.user?.role)
+  const userId = useAuthStore((state) => state.user?.id)
+  const addChatNotification = useNotificationStore((state) => state.addChatNotification)
 
   useEffect(() => {
     if (!accessToken) return
@@ -59,7 +64,7 @@ export function useWebSocket() {
       }
 
       if (orderEventNames.has(eventName ?? '')) {
-        const orderId = getOrderId(event.payload)
+        const orderId = getOrderId(event.payload ?? event)
         void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
 
         if (orderId) {
@@ -68,17 +73,57 @@ export function useWebSocket() {
       }
 
       if (chatEventNames.has(eventName ?? '')) {
-        const orderId = getOrderId(event.payload)
+        const eventPayload = event.payload ?? event
+        const chatMessage = normalizeChatMessageEvent(eventPayload)
+        const orderId = chatMessage?.orderId ?? getOrderId(eventPayload)
 
         if (orderId) {
+          if (chatMessage && isIncomingDriverMessage(chatMessage, userId)) {
+            addChatNotification(chatMessage)
+            toast.custom(
+              (toastInstance) =>
+                createElement(
+                  'div',
+                  { className: 'w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg' },
+                  createElement('div', { className: 'text-sm font-bold text-slate-950' }, 'Сообщение от водителя'),
+                  createElement('div', { className: 'mt-1 text-xs text-slate-500' }, `Заказ ${orderId}`),
+                  createElement('p', { className: 'mt-2 line-clamp-3 text-sm text-slate-700' }, chatMessage.body),
+                  createElement(
+                    'div',
+                    { className: 'mt-3 flex items-center justify-between' },
+                    createElement(
+                      'a',
+                      {
+                        className: 'text-sm font-semibold text-amber-700 hover:text-amber-800',
+                        href: `/taxi-park/orders/${orderId}#driver-chat`,
+                        onClick: () => toast.dismiss(toastInstance.id),
+                      },
+                      'Открыть чат',
+                    ),
+                    createElement(
+                      'button',
+                      {
+                        type: 'button',
+                        className: 'text-sm text-slate-500 hover:text-slate-700',
+                        onClick: () => toast.dismiss(toastInstance.id),
+                      },
+                      'Закрыть',
+                    ),
+                  ),
+                ),
+              { duration: 7000 },
+            )
+          }
+
           void queryClient.invalidateQueries({
             queryKey: ['taxi-park-order-driver-chat', orderId],
           })
+          void queryClient.invalidateQueries({ queryKey: ['taxi-park-order', orderId] })
         }
       }
 
       if (eventName === 'driver.location.updated' || eventName === 'driver.location_updated') {
-        const location = normalizeDriverLocationEvent(event.payload)
+        const location = normalizeDriverLocationEvent(event.payload ?? event)
 
         if (location) {
           queryClient.setQueryData<DriverLocationCache>(
@@ -95,10 +140,12 @@ export function useWebSocket() {
         void queryClient.invalidateQueries({ queryKey: ['taxi-park-driver-locations-snapshot'] })
       }
 
-      if (isDriverStatusEvent(eventName)) {
-        const statusUpdate = normalizeDriverStatusEvent(event.payload, eventName)
+      const driverStatusPayload = event.payload ?? event
+      if (isDriverStatusEvent(eventName) || hasDriverStatusPayload(driverStatusPayload)) {
+        const statusUpdate = normalizeDriverStatusEvent(driverStatusPayload, eventName)
 
         if (statusUpdate) {
+          showDriverStatusToast(statusUpdate)
           queryClient.setQueryData<DriverLocationCache>(
             ['taxi-park-driver-locations'],
             (previous) => applyDriverStatusToLocationCache(previous, statusUpdate),
@@ -106,13 +153,14 @@ export function useWebSocket() {
         }
 
         void queryClient.invalidateQueries({ queryKey: ['taxi-park-drivers'] })
+        void queryClient.invalidateQueries({ queryKey: ['taxi-park-drivers', ''] })
         void queryClient.invalidateQueries({ queryKey: ['taxi-park-driver-locations-snapshot'] })
         void queryClient.invalidateQueries({ queryKey: ['taxi-park-balance'] })
       }
     }
 
     return () => socket.close()
-  }, [accessToken, queryClient, role])
+  }, [accessToken, addChatNotification, queryClient, role, userId])
 }
 
 const orderEventNames = new Set([
@@ -147,6 +195,9 @@ const driverStatusEventNames = new Set([
   'driver.line_offline',
   'driver.line.online',
   'driver.line.offline',
+  'driver.online_status_changed',
+  'driver.availability_changed',
+  'driver.availability.changed',
 ])
 
 const chatEventNames = new Set([
@@ -160,7 +211,7 @@ const chatEventNames = new Set([
 function normalizeDriverLocationEvent(payload: unknown): DriverLocationSnapshot | null {
   if (!payload || typeof payload !== 'object') return null
 
-  const data = payload as Record<string, unknown>
+  const data = unwrapPayload(payload)
   const locationData = data.location as Record<string, unknown> | undefined
   const driverId = stringValue(data.driver_id) ?? stringValue(data.driverId) ?? stringValue(data.id)
   const latitude =
@@ -200,7 +251,7 @@ function normalizeDriverLocationEvent(payload: unknown): DriverLocationSnapshot 
 function normalizeDriverStatusEvent(payload: unknown, eventName?: string) {
   if (!payload || typeof payload !== 'object') return null
 
-  const data = payload as Record<string, unknown>
+  const data = unwrapPayload(payload)
   const payloadData = data.data as Record<string, unknown> | undefined
   const driver = data.driver as Record<string, unknown> | undefined
   const driverId =
@@ -234,6 +285,15 @@ function normalizeDriverStatusEvent(payload: unknown, eventName?: string) {
     stringValue(payloadData?.driver_status) ??
     stringValue(payloadData?.driverStatus) ??
     stringValue(driver?.status) ??
+    booleanStatus(data.is_online) ??
+    booleanStatus(data.isOnline) ??
+    booleanStatus(data.online) ??
+    booleanStatus(payloadData?.is_online) ??
+    booleanStatus(payloadData?.isOnline) ??
+    booleanStatus(payloadData?.online) ??
+    booleanStatus(driver?.is_online) ??
+    booleanStatus(driver?.isOnline) ??
+    booleanStatus(driver?.online) ??
     inferDriverStatusFromEventName(eventName)
 
   if (!driverId || !status) return null
@@ -255,6 +315,62 @@ function normalizeDriverStatusEvent(payload: unknown, eventName?: string) {
   }
 }
 
+function normalizeChatMessageEvent(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return null
+
+  const data = unwrapPayload(payload)
+  const message = getObject(data.message) ?? getObject(data.chat_message) ?? data
+  const orderId = getOrderId(data) ?? getOrderId(message)
+  const body =
+    stringValue(message.body) ??
+    stringValue(message.message) ??
+    stringValue(message.text) ??
+    stringValue(message.content) ??
+    stringValue(data.body) ??
+    stringValue(data.message_text) ??
+    stringValue(data.content)
+
+  if (!orderId || !body) return null
+
+  return {
+    id:
+      stringValue(message.id) ??
+      stringValue(data.id) ??
+      `${orderId}-${stringValue(data.request_id) ?? Date.now()}`,
+    orderId,
+    senderName:
+      stringValue(message.sender_name) ??
+      stringValue(message.senderName) ??
+      stringValue(data.sender_name) ??
+      stringValue(data.driver_name),
+    senderRole:
+      stringValue(message.sender_role) ??
+      stringValue(message.senderRole) ??
+      stringValue(data.sender_role),
+    senderUserId:
+      stringValue(message.sender_user_id) ??
+      stringValue(message.senderUserId) ??
+      stringValue(data.sender_user_id),
+    body,
+    createdAt:
+      stringValue(message.created_at) ??
+      stringValue(message.createdAt) ??
+      stringValue(data.created_at) ??
+      stringValue(data.occurred_at) ??
+      new Date().toISOString(),
+  }
+}
+
+function isIncomingDriverMessage(
+  message: NonNullable<ReturnType<typeof normalizeChatMessageEvent>>,
+  currentUserId?: string,
+) {
+  if (message.senderUserId && message.senderUserId === currentUserId) return false
+  if (!message.senderRole) return true
+
+  return message.senderRole === 'driver'
+}
+
 function isDriverStatusEvent(eventName?: string) {
   if (!eventName) return false
   if (driverStatusEventNames.has(eventName)) return true
@@ -262,10 +378,43 @@ function isDriverStatusEvent(eventName?: string) {
   return (
     eventName.startsWith('driver.status') ||
     eventName.startsWith('driver.line') ||
+    (eventName.startsWith('driver.') && eventName.includes('status')) ||
+    (eventName.startsWith('driver.') && eventName.includes('online')) ||
+    (eventName.startsWith('driver.') && eventName.includes('offline')) ||
+    (eventName.startsWith('driver.') && eventName.includes('availability')) ||
     eventName === 'driver.online' ||
     eventName === 'driver.offline' ||
     eventName === 'driver.paused'
   )
+}
+
+function hasDriverStatusPayload(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return false
+
+  const data = unwrapPayload(payload)
+  const driver = getObject(data.driver)
+  const hasDriverIdentity =
+    Boolean(
+      stringValue(data.driver_id) ??
+        stringValue(data.driverId) ??
+        stringValue(data.user_id) ??
+        stringValue(driver?.id) ??
+        stringValue(driver?.driver_id) ??
+        stringValue(driver?.user_id),
+    )
+  const hasStatusValue =
+    Boolean(
+      stringValue(data.status) ??
+        stringValue(data.new_status) ??
+        stringValue(data.driver_status) ??
+        stringValue(driver?.status) ??
+        booleanStatus(data.is_online) ??
+        booleanStatus(data.online) ??
+        booleanStatus(driver?.is_online) ??
+        booleanStatus(driver?.online),
+    )
+
+  return hasDriverIdentity && hasStatusValue
 }
 
 function applyDriverStatusToLocationCache(
@@ -327,6 +476,21 @@ function mergeDriverStatus(
   }
 }
 
+function showDriverStatusToast(
+  statusUpdate: NonNullable<ReturnType<typeof normalizeDriverStatusEvent>>,
+) {
+  const name = statusUpdate.name ?? statusUpdate.phone ?? statusUpdate.driver_id
+
+  if (statusUpdate.status === 'online') {
+    toast.success(`Водитель вышел на линию: ${name}`)
+    return
+  }
+
+  if (statusUpdate.status === 'offline') {
+    toast(`Водитель ушел с линии: ${name}`)
+  }
+}
+
 function inferDriverStatusFromEventName(eventName?: string) {
   if (!eventName) return undefined
 
@@ -337,7 +501,8 @@ function inferDriverStatusFromEventName(eventName?: string) {
     eventName === 'driver.line_stopped' ||
     eventName === 'driver.went_offline' ||
     eventName === 'driver.line_offline' ||
-    eventName === 'driver.line.offline'
+    eventName === 'driver.line.offline' ||
+    eventName.includes('offline')
   ) {
     return 'offline'
   }
@@ -349,7 +514,8 @@ function inferDriverStatusFromEventName(eventName?: string) {
     eventName === 'driver.line_started' ||
     eventName === 'driver.went_online' ||
     eventName === 'driver.line_online' ||
-    eventName === 'driver.line.online'
+    eventName === 'driver.line.online' ||
+    eventName.includes('online')
   ) {
     return 'online'
   }
@@ -360,14 +526,40 @@ function inferDriverStatusFromEventName(eventName?: string) {
 }
 
 function getEventName(event: WebSocketEvent) {
-  if ('type' in event && event.type) return event.type
-  if ('event' in event && event.event) return event.event
+  const data = event as Record<string, unknown>
+  const payload = getObject(data.payload)
+  const nestedData = getObject(data.data)
+
+  return (
+    stringValue(data.type) ??
+    stringValue(data.event) ??
+    stringValue(data.event_type) ??
+    stringValue(data.eventType) ??
+    stringValue(data.name) ??
+    stringValue(data.topic) ??
+    stringValue(payload?.type) ??
+    stringValue(payload?.event) ??
+    stringValue(payload?.event_type) ??
+    stringValue(payload?.eventType) ??
+    stringValue(nestedData?.type) ??
+    stringValue(nestedData?.event) ??
+    stringValue(nestedData?.event_type) ??
+    stringValue(nestedData?.eventType)
+  )
+}
+
+function booleanStatus(value: unknown) {
+  if (typeof value === 'boolean') return value ? 'online' : 'offline'
+  if (typeof value === 'string') {
+    if (value === 'true') return 'online'
+    if (value === 'false') return 'offline'
+  }
   return undefined
 }
 
 function getOrderId(payload: unknown) {
   if (!payload || typeof payload !== 'object') return undefined
-  const data = payload as Record<string, unknown>
+  const data = unwrapPayload(payload)
   return (
     stringValue(data.order_id) ??
     stringValue(data.orderId) ??
@@ -381,6 +573,18 @@ function getOrderId(payload: unknown) {
     stringValue((data.data as Record<string, unknown> | undefined)?.order_id) ??
     stringValue((data.data as Record<string, unknown> | undefined)?.orderId)
   )
+}
+
+function unwrapPayload(payload: unknown): Record<string, unknown> {
+  const data = payload as Record<string, unknown>
+  const nestedPayload = getObject(data.payload)
+  const nestedData = getObject(data.data)
+
+  return nestedPayload ?? nestedData ?? data
+}
+
+function getObject(value: unknown) {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined
 }
 
 function stringValue(value: unknown) {
