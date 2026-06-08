@@ -5,12 +5,12 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { useAuthStore } from '../../shared/auth/auth-store'
+import { statusLabel } from '../../shared/ui/badge-utils'
 import { Card, StatCard } from '../../shared/ui/Card'
 import { Skeleton } from '../../shared/ui/Loader'
 import { EmptyState, Table } from '../../shared/ui/Table'
 import { formatDate } from '../../shared/utils/format-date'
 import { formatMoneyCents } from '../../shared/utils/format-money'
-import { statusLabel } from '../../shared/ui/badge-utils'
 import { useNotificationStore } from '../notifications/notification-store'
 import {
   getAdminFinanceOverview,
@@ -34,7 +34,9 @@ export function DashboardPage() {
   return (
     <Card>
       <h2 className="text-lg font-bold text-slate-950">Dashboard</h2>
-      <p className="mt-2 text-sm text-slate-500">Раздел для роли {user?.role} будет расширен после появления API.</p>
+      <p className="mt-2 text-sm text-slate-500">
+        Раздел для роли {user?.role} будет расширен после появления API.
+      </p>
     </Card>
   )
 }
@@ -168,7 +170,10 @@ function ChatNotificationsCard() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-bold text-slate-900">
-                    Заказ {notification.orderId}
+                    {notification.driverName ?? notification.senderName ?? 'Водитель'}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-slate-600">
+                    {notification.orderTitle ?? 'Заказ такси'}
                   </p>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-600">
                     {notification.body}
@@ -178,10 +183,8 @@ function ChatNotificationsCard() {
                   {formatDate(notification.createdAt)}
                 </span>
               </div>
-              {notification.senderName || notification.senderRole ? (
-                <p className="mt-2 text-xs text-slate-500">
-                  {notification.senderName ?? notification.senderRole}
-                </p>
+              {notification.orderSummary ? (
+                <p className="mt-2 text-xs text-slate-500">{notification.orderSummary}</p>
               ) : null}
             </Link>
           ))}

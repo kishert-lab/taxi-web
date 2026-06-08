@@ -4,9 +4,12 @@ import { persist } from 'zustand/middleware'
 export type ChatNotification = {
   id: string
   orderId: string
+  orderTitle?: string
+  orderSummary?: string
   senderUserId?: string
   senderName?: string
   senderRole?: string
+  driverName?: string
   body: string
   createdAt: string
 }

@@ -9,6 +9,7 @@ import { formatDate } from '../../shared/utils/format-date'
 import { getTaxiParkDriverLocations } from '../dashboard/api'
 import type { DriverLocationCache } from '../websocket/use-mobile-ws'
 import type { CoordinatesPayload, TaxiParkOrder } from './api'
+import { getDriverDisplayName } from './order-display'
 
 const pickupIcon = L.divIcon({
   className: '',
@@ -37,6 +38,10 @@ type DriverPositionLike = {
   latitude?: number
   longitude?: number
   location?: CoordinatesPayload
+  name?: string
+  status?: string
+  updated_at?: string
+  recorded_at?: string
 }
 
 export function TaxiParkOrderMap({ order }: { order: TaxiParkOrder }) {
@@ -79,20 +84,12 @@ export function TaxiParkOrderMap({ order }: { order: TaxiParkOrder }) {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {pickup ? (
-            <Marker position={[pickup.latitude, pickup.longitude]} icon={pickupIcon} />
-          ) : null}
+          {pickup ? <Marker position={[pickup.latitude, pickup.longitude]} icon={pickupIcon} /> : null}
           {destination ? (
-            <Marker
-              position={[destination.latitude, destination.longitude]}
-              icon={destinationIcon}
-            />
+            <Marker position={[destination.latitude, destination.longitude]} icon={destinationIcon} />
           ) : null}
           {driverPoint ? (
-            <Marker
-              position={[driverPoint.latitude, driverPoint.longitude]}
-              icon={driverIcon}
-            />
+            <Marker position={[driverPoint.latitude, driverPoint.longitude]} icon={driverIcon} />
           ) : null}
           {route.length > 1 ? <Polyline positions={route} color="#F59E0B" /> : null}
         </MapContainer>
@@ -149,18 +146,10 @@ function getDriverPoint(driver?: DriverPositionLike) {
   return { latitude, longitude }
 }
 
-function getDriverName(
-  order: TaxiParkOrder,
-  driver?: { name?: string },
-) {
-  return driver?.name ?? order.driver_name ?? order.driver_id ?? 'Не назначен'
+function getDriverName(order: TaxiParkOrder, driver?: { name?: string }) {
+  return driver?.name ?? getDriverDisplayName(order)
 }
 
-function getDriverUpdatedAt(
-  driver?: {
-    updated_at?: string
-    recorded_at?: string
-  },
-) {
+function getDriverUpdatedAt(driver?: { updated_at?: string; recorded_at?: string }) {
   return driver?.updated_at ?? driver?.recorded_at
 }

@@ -36,7 +36,7 @@ export function ChatNotificationsButton() {
       <Button
         type="button"
         variant="secondary"
-        className={`relative h-10 w-10 p-0 ${shouldBlink ? 'ring-2 ring-amber-400 ring-offset-2 animate-pulse' : ''}`}
+        className={`relative h-10 w-10 p-0 ${shouldBlink ? 'animate-pulse ring-2 ring-amber-400 ring-offset-2' : ''}`}
         title="Сообщения водителей"
         onClick={() => setOpen((value) => !value)}
       >
@@ -49,7 +49,7 @@ export function ChatNotificationsButton() {
       </Button>
 
       {open ? (
-        <div className="absolute right-0 top-12 z-50 w-[340px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="absolute right-0 top-12 z-50 w-[360px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-bold text-slate-950">Сообщения водителей</div>
@@ -79,7 +79,10 @@ export function ChatNotificationsButton() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-bold text-slate-900">
-                          Заказ {notification.orderId}
+                          {notification.driverName ?? notification.senderName ?? 'Водитель'}
+                        </div>
+                        <div className="mt-1 truncate text-xs font-medium text-slate-600">
+                          {notification.orderTitle ?? 'Заказ такси'}
                         </div>
                         <p className="mt-1 line-clamp-2 text-sm text-slate-600">
                           {notification.body}
@@ -89,9 +92,9 @@ export function ChatNotificationsButton() {
                         {formatDate(notification.createdAt)}
                       </span>
                     </div>
-                    {notification.senderName || notification.senderRole ? (
-                      <div className="mt-2 text-xs text-slate-500">
-                        {notification.senderName ?? notification.senderRole}
+                    {notification.orderSummary ? (
+                      <div className="mt-2 line-clamp-1 text-xs text-slate-500">
+                        {notification.orderSummary}
                       </div>
                     ) : null}
                   </Link>

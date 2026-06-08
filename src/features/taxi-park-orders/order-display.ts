@@ -1,0 +1,42 @@
+import { formatDate } from '../../shared/utils/format-date'
+import { formatMoneyCents } from '../../shared/utils/format-money'
+import type { TaxiParkOrder } from './api'
+
+export function getOrderRouteLabel(order?: Partial<TaxiParkOrder> | null) {
+  if (!order) return 'заказ'
+
+  const pickup = cleanText(order.pickup_address)
+  const destination = cleanText(order.destination_address)
+
+  if (pickup && destination) return `${pickup} -> ${destination}`
+  if (pickup) return `Откуда: ${pickup}`
+  if (destination) return `Куда: ${destination}`
+
+  return 'Заказ такси'
+}
+
+export function getOrderShortInfo(order?: Partial<TaxiParkOrder> | null) {
+  if (!order) return 'Информация о заказе обновляется'
+
+  const parts = [
+    cleanText(order.passenger_phone) ? `пассажир ${cleanText(order.passenger_phone)}` : undefined,
+    order.status ? `статус: ${order.status}` : undefined,
+    order.created_at ? `создан ${formatDate(order.created_at)}` : undefined,
+    formatMoneyCents(order.gross_amount ?? order.total_price ?? order.price),
+  ].filter(Boolean)
+
+  return parts.join(' · ') || 'Информация о заказе обновляется'
+}
+
+export function getDriverDisplayName(order?: Partial<TaxiParkOrder> | null) {
+  return cleanText(order?.driver_name) ?? 'Водитель не назначен'
+}
+
+export function getReadableOrderTitle(order?: Partial<TaxiParkOrder> | null) {
+  return `Заказ: ${getOrderRouteLabel(order)}`
+}
+
+function cleanText(value?: string | null) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
