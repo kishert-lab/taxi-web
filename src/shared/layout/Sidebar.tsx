@@ -40,6 +40,7 @@ const menuByRole: Partial<Record<UserRole, MenuItem[]>> = {
     { label: 'Водители', href: '/taxi-park/drivers', icon: Users },
     { label: 'Автомобили', href: '/taxi-park/cars', icon: Car },
     { label: 'Заказы', href: '/taxi-park/orders', icon: ClipboardList },
+    { label: 'Финансы', href: '/taxi-park/finance', icon: BadgeDollarSign },
   ],
   driver: [
     { label: 'Dashboard', href: '/dashboard', icon: Gauge },

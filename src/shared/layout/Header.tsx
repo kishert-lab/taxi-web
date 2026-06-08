@@ -16,6 +16,7 @@ const titles: Record<string, string> = {
   '/taxi-park/drivers': 'Водители',
   '/taxi-park/cars': 'Автомобили',
   '/taxi-park/orders': 'Заказы',
+  '/taxi-park/finance': 'Финансы таксопарка',
   '/driver/finance': 'Финансы водителя',
 }
 

@@ -26,6 +26,7 @@ import {
   type TaxiParkOrder,
   updateTaxiParkOrder,
 } from './api'
+import { getDriverDisplayName, getOrderShortInfo, getReadableOrderTitle } from './order-display'
 import { TaxiParkOrderDriverChat } from './TaxiParkOrderDriverChat'
 import { TaxiParkOrderMap } from './TaxiParkOrderMap'
 
@@ -148,7 +149,10 @@ export function TaxiParkOrderDetailsPage() {
           <Link className="text-sm font-semibold text-amber-700" to="/taxi-park/orders">
             Назад к заказам
           </Link>
-          <h1 className="mt-1 text-2xl font-bold text-slate-950">Заказ {data.id}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-slate-950">
+            {getReadableOrderTitle(data)}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">{getOrderShortInfo(data)}</p>
         </div>
         <Badge variant={statusVariant(data.status)}>{statusLabel(data.status)}</Badge>
       </div>
@@ -163,7 +167,7 @@ export function TaxiParkOrderDetailsPage() {
           <Card className="space-y-3">
             <h2 className="text-lg font-bold text-slate-950">Информация</h2>
             <Info label="Статус" value={statusLabel(data.status)} />
-            <Info label="Водитель" value={data.driver_name ?? data.driver_id ?? '-'} />
+            <Info label="Водитель" value={getDriverDisplayName(data)} />
             <Info label="Телефон пассажира" value={data.passenger_phone ?? '-'} />
             <Info label="Подача" value={data.pickup_address ?? '-'} />
             <Info label="Куда" value={data.destination_address ?? '-'} />

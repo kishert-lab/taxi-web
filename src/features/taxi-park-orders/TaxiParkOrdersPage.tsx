@@ -15,6 +15,7 @@ import { EmptyState, Table } from '../../shared/ui/Table'
 import { formatDate } from '../../shared/utils/format-date'
 import { formatMoneyCents } from '../../shared/utils/format-money'
 import { createTaxiParkOrder, getTaxiParkOrders } from './api'
+import { getDriverDisplayName, getOrderRouteLabel } from './order-display'
 import { TaxiParkOrderCreateModal } from './TaxiParkOrderCreateModal'
 
 export function TaxiParkOrdersPage() {
@@ -74,6 +75,7 @@ export function TaxiParkOrdersPage() {
           <Table>
             <thead>
               <tr className="text-slate-500">
+                <th className="border-b border-slate-200 p-3">Заказ</th>
                 <th className="border-b border-slate-200 p-3">Статус</th>
                 <th className="border-b border-slate-200 p-3">Водитель</th>
                 <th className="border-b border-slate-200 p-3">Сумма</th>
@@ -89,11 +91,13 @@ export function TaxiParkOrdersPage() {
                   onClick={() => navigate(`/taxi-park/orders/${order.id}`)}
                 >
                   <td className="border-b border-slate-100 p-3">
-                    <Badge variant={statusVariant(order.status)}>{statusLabel(order.status)}</Badge>
+                    <div className="font-semibold text-slate-900">{getOrderRouteLabel(order)}</div>
+                    <div className="text-xs text-slate-500">{order.passenger_phone ?? 'пассажир не указан'}</div>
                   </td>
                   <td className="border-b border-slate-100 p-3">
-                    {order.driver_name ?? order.driver_id ?? '-'}
+                    <Badge variant={statusVariant(order.status)}>{statusLabel(order.status)}</Badge>
                   </td>
+                  <td className="border-b border-slate-100 p-3">{getDriverDisplayName(order)}</td>
                   <td className="border-b border-slate-100 p-3">
                     {formatMoneyCents(order.gross_amount ?? order.total_price ?? order.price)}
                   </td>
