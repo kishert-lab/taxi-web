@@ -163,37 +163,44 @@ export function TaxiParkOrdersPage() {
 
   return (
     <div className="space-y-4">
-      <Card className="grid gap-3 md:grid-cols-[1fr_220px_auto] md:items-end">
-        <div>
+      <Card className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-bold text-slate-950">Заказы</h2>
           <p className="text-sm text-slate-500">
             Текущие и предварительные заказы таксопарка.
           </p>
         </div>
-        <div className="flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center xl:shrink-0">
+          <div className="flex rounded-2xl border border-slate-200 bg-slate-50 p-1 sm:min-w-[320px]">
+            <Button
+              type="button"
+              variant={mode === 'current' ? 'primary' : 'ghost'}
+              className="flex-1"
+              onClick={() => switchMode('current')}
+            >
+              Текущие
+            </Button>
+            <Button
+              type="button"
+              variant={mode === 'scheduled' ? 'primary' : 'ghost'}
+              className="flex-1"
+              onClick={() => switchMode('scheduled')}
+            >
+              Предварительные
+            </Button>
+          </div>
+
           <Button
             type="button"
-            variant={mode === 'current' ? 'primary' : 'ghost'}
-            className="flex-1"
-            onClick={() => switchMode('current')}
+            className="sm:whitespace-nowrap"
+            onClick={() =>
+              mode === 'current' ? setCreateCurrentOpen(true) : setCreateScheduledOpen(true)
+            }
           >
-            Текущие
-          </Button>
-          <Button
-            type="button"
-            variant={mode === 'scheduled' ? 'primary' : 'ghost'}
-            className="flex-1"
-            onClick={() => switchMode('scheduled')}
-          >
-            Предварительные
+            {mode === 'current' ? 'Создать заказ' : 'Создать предварительный'}
           </Button>
         </div>
-        <Button
-          type="button"
-          onClick={() => (mode === 'current' ? setCreateCurrentOpen(true) : setCreateScheduledOpen(true))}
-        >
-          {mode === 'current' ? 'Создать заказ' : 'Создать предварительный'}
-        </Button>
       </Card>
 
       <Card
@@ -327,9 +334,7 @@ export function TaxiParkOrdersPage() {
                         {statusLabel(order.scheduled_status)}
                       </Badge>
                     </td>
-                    <td className="border-b border-slate-100 p-3">
-                      {order.passenger_phone ?? '-'}
-                    </td>
+                    <td className="border-b border-slate-100 p-3">{order.passenger_phone ?? '-'}</td>
                     <td className="border-b border-slate-100 p-3">
                       {getDriverDisplayName(order, driverName)}
                     </td>
