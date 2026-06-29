@@ -1,12 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import L from 'leaflet'
+import { useEffect, useRef, useState } from 'react'
 import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet'
 
+import { appConfig } from '../../app/config'
+import { loadYandexMaps, type YandexCoordinates, type YandexMapInstance } from '../../shared/maps/yandex-loader'
 import { Badge } from '../../shared/ui/Badge'
 import { statusLabel, statusVariant } from '../../shared/ui/badge-utils'
 import { Card } from '../../shared/ui/Card'
 import { formatDate } from '../../shared/utils/format-date'
 import { getTaxiParkDriverLocations } from '../dashboard/api'
+import { getTaxiParkSettings } from '../taxi-park-settings/api'
 import type { DriverLocationCache } from '../websocket/use-mobile-ws'
 import type { CoordinatesPayload, TaxiParkOrder } from './api'
 import { getDriverDisplayName } from './order-display'
@@ -45,6 +49,11 @@ type DriverPositionLike = {
 }
 
 export function TaxiParkOrderMap({ order }: { order: TaxiParkOrder }) {
+  const settings = useQuery({
+    queryKey: ['taxi-park-settings'],
+    queryFn: getTaxiParkSettings,
+    staleTime: 60_000,
+  })
   const locations = useQuery<DriverLocationCache>({
     queryKey: ['taxi-park-driver-locations'],
     queryFn: async () => ({}),
@@ -65,10 +74,7 @@ export function TaxiParkOrderMap({ order }: { order: TaxiParkOrder }) {
     ? locations.data[order.driver_id] ?? snapshotDriver
     : undefined
   const driverPoint = getDriverPoint(driverLocation)
-  const center = getCenter(pickup, destination, driverLocation)
-  const route = [pickup, destination]
-    .filter((point): point is CoordinatesPayload => Boolean(point))
-    .map((point) => [point.latitude, point.longitude] as [number, number])
+  const parkCenter = settings.data?.city?.center
 
   return (
     <Card className="overflow-hidden p-0">
@@ -79,20 +85,13 @@ export function TaxiParkOrderMap({ order }: { order: TaxiParkOrder }) {
         </p>
       </div>
       <div className="h-[460px]">
-        <MapContainer center={center} zoom={13} className="h-full w-full" scrollWheelZoom>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          {pickup ? <Marker position={[pickup.latitude, pickup.longitude]} icon={pickupIcon} /> : null}
-          {destination ? (
-            <Marker position={[destination.latitude, destination.longitude]} icon={destinationIcon} />
-          ) : null}
-          {driverPoint ? (
-            <Marker position={[driverPoint.latitude, driverPoint.longitude]} icon={driverIcon} />
-          ) : null}
-          {route.length > 1 ? <Polyline positions={route} color="#F59E0B" /> : null}
-        </MapContainer>
+        <OrderMapCanvas
+          pickup={pickup}
+          destination={destination}
+          driverPoint={driverPoint}
+          driverName={getDriverName(order, driverLocation)}
+          defaultCenter={parkCenter ? [parkCenter.latitude, parkCenter.longitude] : defaultCenter}
+        />
       </div>
       <div className="grid gap-3 border-t border-slate-200 px-4 py-3 text-sm md:grid-cols-3">
         <div>
@@ -123,19 +122,247 @@ export function TaxiParkOrderMap({ order }: { order: TaxiParkOrder }) {
   )
 }
 
+function OrderMapCanvas({
+  pickup,
+  destination,
+  driverPoint,
+  driverName,
+  defaultCenter,
+}: {
+  pickup?: CoordinatesPayload
+  destination?: CoordinatesPayload
+  driverPoint?: CoordinatesPayload
+  driverName: string
+  defaultCenter: [number, number]
+}) {
+  const [useLeafletFallback, setUseLeafletFallback] = useState(!appConfig.yandexMapsApiKey)
+
+  if (useLeafletFallback) {
+    return (
+      <LeafletOrderMapCanvas
+        pickup={pickup}
+        destination={destination}
+        driverPoint={driverPoint}
+        defaultCenter={defaultCenter}
+      />
+    )
+  }
+
+  return (
+    <YandexOrderMapCanvas
+      pickup={pickup}
+      destination={destination}
+      driverPoint={driverPoint}
+      driverName={driverName}
+      defaultCenter={defaultCenter}
+      onFallback={() => setUseLeafletFallback(true)}
+    />
+  )
+}
+
+function YandexOrderMapCanvas({
+  pickup,
+  destination,
+  driverPoint,
+  driverName,
+  defaultCenter,
+  onFallback,
+}: {
+  pickup?: CoordinatesPayload
+  destination?: CoordinatesPayload
+  driverPoint?: CoordinatesPayload
+  driverName: string
+  defaultCenter: [number, number]
+  onFallback: () => void
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<YandexMapInstance | null>(null)
+  const [mapReady, setMapReady] = useState(false)
+
+  useEffect(() => {
+    let isDisposed = false
+
+    async function initializeMap() {
+      if (!containerRef.current) return
+
+      try {
+        const ymaps = await loadYandexMaps(appConfig.yandexMapsApiKey)
+        if (isDisposed || !containerRef.current) return
+
+        mapRef.current = new ymaps.Map(
+          containerRef.current,
+          {
+            center: defaultCenter,
+            zoom: 12,
+            controls: ['zoomControl', 'fullscreenControl'],
+          },
+          { suppressMapOpenBlock: true },
+        )
+        setMapReady(true)
+      } catch {
+        if (!isDisposed) onFallback()
+      }
+    }
+
+    void initializeMap()
+
+    return () => {
+      isDisposed = true
+      setMapReady(false)
+      mapRef.current?.destroy()
+      mapRef.current = null
+    }
+  }, [defaultCenter, onFallback])
+
+  useEffect(() => {
+    let isDisposed = false
+
+    async function syncMap() {
+      if (!mapRef.current || !mapReady) return
+
+      const ymaps = await loadYandexMaps(appConfig.yandexMapsApiKey)
+      if (isDisposed || !mapRef.current) return
+
+      mapRef.current.geoObjects.removeAll()
+
+      if (pickup) {
+        mapRef.current.geoObjects.add(
+          new ymaps.Placemark(
+            [pickup.latitude, pickup.longitude],
+            { hintContent: 'Точка подачи' },
+            { preset: 'islands#greenCircleDotIcon' },
+          ),
+        )
+      }
+
+      if (destination) {
+        mapRef.current.geoObjects.add(
+          new ymaps.Placemark(
+            [destination.latitude, destination.longitude],
+            { hintContent: 'Точка назначения' },
+            { preset: 'islands#redCircleDotIcon' },
+          ),
+        )
+      }
+
+      if (driverPoint) {
+        mapRef.current.geoObjects.add(
+          new ymaps.Placemark(
+            [driverPoint.latitude, driverPoint.longitude],
+            { hintContent: driverName },
+            { preset: 'islands#orangeCircleDotIcon' },
+          ),
+        )
+      }
+
+      const route = [pickup, destination]
+        .filter((point): point is CoordinatesPayload => Boolean(point))
+        .map((point) => [point.latitude, point.longitude] as YandexCoordinates)
+
+      if (route.length > 1) {
+        mapRef.current.geoObjects.add(
+          new ymaps.Polyline(route, {}, { strokeColor: '#F59E0B', strokeWidth: 4, opacity: 0.85 }),
+        )
+      }
+
+      const focusPoints = [pickup, destination, driverPoint]
+        .filter((point): point is CoordinatesPayload => Boolean(point))
+        .map((point) => [point.latitude, point.longitude] as YandexCoordinates)
+
+      focusYandexMap(mapRef.current, focusPoints, defaultCenter)
+      mapRef.current.container.fitToViewport()
+    }
+
+    void syncMap()
+
+    return () => {
+      isDisposed = true
+    }
+  }, [defaultCenter, destination, driverName, driverPoint, mapReady, pickup])
+
+  return <div ref={containerRef} className="h-full w-full" />
+}
+
+function LeafletOrderMapCanvas({
+  pickup,
+  destination,
+  driverPoint,
+  defaultCenter,
+}: {
+  pickup?: CoordinatesPayload
+  destination?: CoordinatesPayload
+  driverPoint?: CoordinatesPayload
+  defaultCenter: [number, number]
+}) {
+  const center = getCenter(pickup, destination, driverPoint, defaultCenter)
+  const route = [pickup, destination]
+    .filter((point): point is CoordinatesPayload => Boolean(point))
+    .map((point) => [point.latitude, point.longitude] as [number, number])
+
+  return (
+    <MapContainer center={center} zoom={13} className="h-full w-full" scrollWheelZoom>
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {pickup ? <Marker position={[pickup.latitude, pickup.longitude]} icon={pickupIcon} /> : null}
+      {destination ? (
+        <Marker position={[destination.latitude, destination.longitude]} icon={destinationIcon} />
+      ) : null}
+      {driverPoint ? (
+        <Marker position={[driverPoint.latitude, driverPoint.longitude]} icon={driverIcon} />
+      ) : null}
+      {route.length > 1 ? <Polyline positions={route} color="#F59E0B" /> : null}
+    </MapContainer>
+  )
+}
+
+function focusYandexMap(
+  map: YandexMapInstance,
+  points: YandexCoordinates[],
+  defaultCenter: [number, number],
+) {
+  if (!points.length) {
+    map.setCenter(defaultCenter, 12, { duration: 200 })
+    return
+  }
+
+  if (points.length === 1) {
+    map.setCenter(points[0], 14, { duration: 200 })
+    return
+  }
+
+  const bounds = getBounds(points)
+  if (!bounds) return
+
+  map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 40 })
+}
+
+function getBounds(points: YandexCoordinates[]) {
+  if (!points.length) return null
+
+  const latitudes = points.map(([latitude]) => latitude)
+  const longitudes = points.map(([, longitude]) => longitude)
+
+  return [
+    [Math.min(...latitudes), Math.min(...longitudes)],
+    [Math.max(...latitudes), Math.max(...longitudes)],
+  ] as [YandexCoordinates, YandexCoordinates]
+}
+
 function getCenter(
   pickup?: CoordinatesPayload,
   destination?: CoordinatesPayload,
-  driver?: DriverPositionLike,
+  driverPoint?: CoordinatesPayload,
+  fallbackCenter: [number, number] = defaultCenter,
 ) {
-  const driverPoint = getDriverPoint(driver)
   if (driverPoint) {
     return [driverPoint.latitude, driverPoint.longitude] as [number, number]
   }
 
   if (pickup) return [pickup.latitude, pickup.longitude] as [number, number]
   if (destination) return [destination.latitude, destination.longitude] as [number, number]
-  return defaultCenter
+  return fallbackCenter
 }
 
 function getDriverPoint(driver?: DriverPositionLike) {
@@ -147,7 +374,7 @@ function getDriverPoint(driver?: DriverPositionLike) {
 }
 
 function getDriverName(order: TaxiParkOrder, driver?: { name?: string }) {
-  return driver?.name ?? getDriverDisplayName(order)
+  return getDriverDisplayName(order, driver?.name)
 }
 
 function getDriverUpdatedAt(driver?: { updated_at?: string; recorded_at?: string }) {

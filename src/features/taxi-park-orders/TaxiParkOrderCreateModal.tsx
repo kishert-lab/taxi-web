@@ -68,7 +68,15 @@ export function TaxiParkOrderCreateModal({
       tariff_id: '',
     },
   })
-  const [pickupAddress, destinationAddress, pickupLatitude, pickupLongitude, destinationLatitude, destinationLongitude] = useWatch({
+
+  const [
+    pickupAddress,
+    destinationAddress,
+    pickupLatitude,
+    pickupLongitude,
+    destinationLatitude,
+    destinationLongitude,
+  ] = useWatch({
     control,
     name: [
       'pickup_address',
@@ -112,12 +120,11 @@ export function TaxiParkOrderCreateModal({
           <Field label="Тариф" error={errors.tariff_id?.message}>
             <Select {...register('tariff_id')} disabled={tariffs.isLoading}>
               <option value="">Выберите тариф</option>
-              {(tariffs.data ?? [])
-                .map((tariff) => (
-                  <option key={tariff.id} value={tariff.id}>
-                    {tariff.name}
-                  </option>
-                ))}
+              {(tariffs.data ?? []).map((tariff) => (
+                <option key={tariff.id} value={tariff.id}>
+                  {tariff.name}
+                </option>
+              ))}
             </Select>
           </Field>
           <Field label="Оплата">
@@ -140,10 +147,7 @@ export function TaxiParkOrderCreateModal({
           }}
           onPickupChange={(point) => {
             setValue('pickup_latitude', point.latitude, { shouldDirty: true, shouldValidate: true })
-            setValue('pickup_longitude', point.longitude, {
-              shouldDirty: true,
-              shouldValidate: true,
-            })
+            setValue('pickup_longitude', point.longitude, { shouldDirty: true, shouldValidate: true })
           }}
           onDestinationChange={(point) => {
             setValue('destination_latitude', point.latitude, {
@@ -167,8 +171,6 @@ export function TaxiParkOrderCreateModal({
               error={coordinateError(errors.pickup_latitude?.message, errors.pickup_longitude?.message)}
               onAddressChange={(value) => {
                 setValue('pickup_address', value, { shouldDirty: true, shouldValidate: true })
-                setValue('pickup_latitude', undefined, { shouldDirty: true })
-                setValue('pickup_longitude', undefined, { shouldDirty: true })
               }}
               onSelectPoint={(point) => {
                 setValue('pickup_address', point.address, { shouldDirty: true, shouldValidate: true })
@@ -194,8 +196,6 @@ export function TaxiParkOrderCreateModal({
               )}
               onAddressChange={(value) => {
                 setValue('destination_address', value, { shouldDirty: true, shouldValidate: true })
-                setValue('destination_latitude', undefined, { shouldDirty: true })
-                setValue('destination_longitude', undefined, { shouldDirty: true })
               }}
               onSelectPoint={(point) => {
                 setValue('destination_address', point.address, {
@@ -214,6 +214,11 @@ export function TaxiParkOrderCreateModal({
             />
           </Field>
         </section>
+
+        <p className="text-xs text-slate-500">
+          Адрес можно ввести вручную. Если геокодер найдет адрес, точка поставится на карте автоматически.
+          Если не найдет, выберите точку на карте вручную.
+        </p>
 
         <Field label="Комментарий">
           <Textarea {...register('comment')} placeholder="Подъезд, ориентир, пожелания пассажира" />
@@ -258,7 +263,9 @@ function normalizeString(value?: string) {
 }
 
 function coordinateError(latitudeError?: string, longitudeError?: string) {
-  return latitudeError || longitudeError ? 'Выберите адрес из подсказки' : undefined
+  return latitudeError || longitudeError
+    ? 'Укажите точку на карте или выберите найденный адрес'
+    : undefined
 }
 
 function getNumericCoordinate(value: unknown) {

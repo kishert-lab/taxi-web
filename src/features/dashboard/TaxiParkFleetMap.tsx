@@ -1,16 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
 import L from 'leaflet'
-import { Car, Clock, MapPin, Navigation } from 'lucide-react'
+import { Car, Clock, MapPin } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, TileLayer } from 'react-leaflet'
 
+import { appConfig } from '../../app/config'
+import {
+  loadYandexMaps,
+  type YandexCoordinates,
+  type YandexMapInstance,
+} from '../../shared/maps/yandex-loader'
 import { Badge } from '../../shared/ui/Badge'
 import { statusLabel, statusVariant } from '../../shared/ui/badge-utils'
 import { Card } from '../../shared/ui/Card'
 import { EmptyState } from '../../shared/ui/Table'
 import { formatDate } from '../../shared/utils/format-date'
 import type { TaxiParkDriver } from '../taxi-park-drivers/api'
+import { getTaxiParkSettings } from '../taxi-park-settings/api'
 import type { DriverLocationCache } from '../websocket/use-mobile-ws'
 import { getTaxiParkDriverLocations, type TaxiParkDriverLocation } from './api'
 
@@ -33,6 +40,16 @@ type FleetDriverLocation = {
   car?: TaxiParkDriverLocation['car']
 }
 
+type ParkOverview = {
+  totalDrivers: number
+  activeDrivers: number
+  busyDrivers: number
+  offlineDrivers: number
+  driversOnMap: number
+  staleDrivers: number
+  lastUpdatedAt?: string
+}
+
 const defaultCenter: [number, number] = [56.838011, 60.597465]
 
 const onlineDriverIcon = L.divIcon({
@@ -51,6 +68,11 @@ const busyDriverIcon = L.divIcon({
 
 export function TaxiParkFleetMap({ drivers }: { drivers: TaxiParkDriver[] }) {
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null)
+  const settings = useQuery({
+    queryKey: ['taxi-park-settings'],
+    queryFn: getTaxiParkSettings,
+    staleTime: 60_000,
+  })
   const snapshot = useQuery({
     queryKey: ['taxi-park-driver-locations-snapshot'],
     queryFn: () => getTaxiParkDriverLocations(30),
@@ -63,14 +85,18 @@ export function TaxiParkFleetMap({ drivers }: { drivers: TaxiParkDriver[] }) {
     staleTime: Infinity,
   })
 
-  const onlineDrivers = useMemo(
+  const activeDrivers = useMemo(
     () => mergeFleetLocations(drivers, snapshot.data ?? [], liveLocations.data),
     [drivers, liveLocations.data, snapshot.data],
   )
-  const driversWithLocation = onlineDrivers.filter(hasLocation)
+  const driversWithLocation = activeDrivers.filter(hasLocation)
   const selectedDriver =
-    onlineDrivers.find((driver) => driver.driver_id === selectedDriverId) ?? onlineDrivers[0]
-  const center = getMapCenter(driversWithLocation)
+    activeDrivers.find((driver) => driver.driver_id === selectedDriverId) ?? activeDrivers[0]
+  const overview = useMemo(
+    () => buildParkOverview(drivers, activeDrivers, driversWithLocation),
+    [drivers, activeDrivers, driversWithLocation],
+  )
+  const parkCenter = settings.data?.city?.center
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -88,22 +114,14 @@ export function TaxiParkFleetMap({ drivers }: { drivers: TaxiParkDriver[] }) {
         </div>
         {driversWithLocation.length ? (
           <div className="h-[460px]">
-            <MapContainer center={center} zoom={13} className="h-full w-full" scrollWheelZoom>
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {driversWithLocation.map((item) => (
-                <Marker
-                  key={item.driver_id}
-                  position={[item.latitude, item.longitude]}
-                  icon={item.status === 'busy' ? busyDriverIcon : onlineDriverIcon}
-                  eventHandlers={{
-                    click: () => setSelectedDriverId(item.driver_id),
-                  }}
-                />
-              ))}
-            </MapContainer>
+            <FleetMapCanvas
+              drivers={driversWithLocation}
+              defaultCenter={
+                parkCenter ? [parkCenter.latitude, parkCenter.longitude] : defaultCenter
+              }
+              selectedDriverId={selectedDriver?.driver_id}
+              onSelect={setSelectedDriverId}
+            />
           </div>
         ) : (
           <div className="flex h-[460px] items-center justify-center">
@@ -112,96 +130,307 @@ export function TaxiParkFleetMap({ drivers }: { drivers: TaxiParkDriver[] }) {
         )}
       </Card>
 
-      <Card className="space-y-4">
-        <div>
-          <h3 className="text-base font-bold text-slate-950">Ситуация по парку</h3>
-          <p className="text-sm text-slate-500">
-            Онлайн: {onlineDrivers.length}, на карте: {driversWithLocation.length}
-          </p>
-        </div>
-
-        {selectedDriver ? (
-          <DriverSituationCard item={selectedDriver} onSelect={setSelectedDriverId} />
-        ) : (
-          <EmptyState title="Нет водителей онлайн" />
-        )}
-
-        {onlineDrivers.length ? (
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-slate-700">Водители онлайн</p>
-            {onlineDrivers.map((item) => (
-              <button
-                key={item.driver_id}
-                type="button"
-                className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white p-3 text-left hover:bg-slate-50"
-                onClick={() => setSelectedDriverId(item.driver_id)}
-              >
-                <span>
-                  <span className="block text-sm font-semibold text-slate-800">{item.name}</span>
-                  <span className="text-xs text-slate-500">
-                    {hasLocation(item) ? 'геопозиция есть' : 'геопозиция не получена'}
-                    {item.is_stale ? ', устарела' : ''}
-                  </span>
-                </span>
-                <Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </Card>
+      <ParkOverviewPanel
+        overview={overview}
+        selectedDriver={selectedDriver}
+        activeDrivers={activeDrivers}
+        onSelectDriver={setSelectedDriverId}
+      />
     </div>
   )
 }
 
-function DriverSituationCard({
-  item,
+function FleetMapCanvas({
+  drivers,
+  defaultCenter,
+  selectedDriverId,
   onSelect,
 }: {
-  item: FleetDriverLocation
+  drivers: Array<FleetDriverLocation & { latitude: number; longitude: number }>
+  defaultCenter: [number, number]
+  selectedDriverId?: string
   onSelect: (driverId: string) => void
 }) {
+  const [useLeafletFallback, setUseLeafletFallback] = useState(!appConfig.yandexMapsApiKey)
+
+  if (useLeafletFallback) {
+    return (
+      <LeafletFleetMapCanvas
+        drivers={drivers}
+        defaultCenter={defaultCenter}
+        selectedDriverId={selectedDriverId}
+        onSelect={onSelect}
+      />
+    )
+  }
+
   return (
-    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-lg font-bold text-slate-950">{item.name}</p>
-          <p className="font-mono text-xs text-slate-500">{item.user_id ?? item.driver_id}</p>
+    <YandexFleetMapCanvas
+      drivers={drivers}
+      defaultCenter={defaultCenter}
+      selectedDriverId={selectedDriverId}
+      onSelect={onSelect}
+      onFallback={() => setUseLeafletFallback(true)}
+    />
+  )
+}
+
+function YandexFleetMapCanvas({
+  drivers,
+  defaultCenter,
+  selectedDriverId,
+  onSelect,
+  onFallback,
+}: {
+  drivers: Array<FleetDriverLocation & { latitude: number; longitude: number }>
+  defaultCenter: [number, number]
+  selectedDriverId?: string
+  onSelect: (driverId: string) => void
+  onFallback: () => void
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<YandexMapInstance | null>(null)
+  const [mapReady, setMapReady] = useState(false)
+
+  useEffect(() => {
+    let isDisposed = false
+
+    async function initializeMap() {
+      if (!containerRef.current) return
+
+      try {
+        const ymaps = await loadYandexMaps(appConfig.yandexMapsApiKey)
+        if (isDisposed || !containerRef.current) return
+
+        mapRef.current = new ymaps.Map(
+          containerRef.current,
+          {
+            center: defaultCenter,
+            zoom: 12,
+            controls: ['zoomControl', 'fullscreenControl'],
+          },
+          { suppressMapOpenBlock: true },
+        )
+        setMapReady(true)
+      } catch {
+        if (!isDisposed) onFallback()
+      }
+    }
+
+    void initializeMap()
+
+    return () => {
+      isDisposed = true
+      setMapReady(false)
+      mapRef.current?.destroy()
+      mapRef.current = null
+    }
+  }, [defaultCenter, onFallback])
+
+  useEffect(() => {
+    let isDisposed = false
+
+    async function syncMap() {
+      if (!mapRef.current || !mapReady) return
+
+      const ymaps = await loadYandexMaps(appConfig.yandexMapsApiKey)
+      if (isDisposed || !mapRef.current) return
+
+      mapRef.current.geoObjects.removeAll()
+
+      drivers.forEach((driver) => {
+        const placemark = new ymaps.Placemark(
+          [driver.latitude, driver.longitude],
+          {
+            hintContent: driver.name,
+            balloonContentHeader: driver.name,
+            balloonContentBody: `Статус: ${statusLabel(driver.status)}`,
+          },
+          {
+            preset:
+              driver.status === 'busy'
+                ? 'islands#orangeCircleDotIcon'
+                : 'islands#greenCircleDotIcon',
+          },
+        )
+
+        placemark.events?.add('click', () => onSelect(driver.driver_id))
+        mapRef.current?.geoObjects.add(placemark)
+      })
+
+      focusFleetMap(mapRef.current, drivers, defaultCenter, selectedDriverId)
+      mapRef.current.container.fitToViewport()
+    }
+
+    void syncMap()
+
+    return () => {
+      isDisposed = true
+    }
+  }, [defaultCenter, drivers, mapReady, onSelect, selectedDriverId])
+
+  return <div ref={containerRef} className="h-full w-full" />
+}
+
+function LeafletFleetMapCanvas({
+  drivers,
+  defaultCenter,
+  selectedDriverId,
+  onSelect,
+}: {
+  drivers: Array<FleetDriverLocation & { latitude: number; longitude: number }>
+  defaultCenter: [number, number]
+  selectedDriverId?: string
+  onSelect: (driverId: string) => void
+}) {
+  const selectedDriver = drivers.find((driver) => driver.driver_id === selectedDriverId)
+  const center = selectedDriver
+    ? ([selectedDriver.latitude, selectedDriver.longitude] as [number, number])
+    : getMapCenter(drivers, defaultCenter)
+
+  return (
+    <MapContainer center={center} zoom={13} className="h-full w-full" scrollWheelZoom>
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {drivers.map((item) => (
+        <Marker
+          key={item.driver_id}
+          position={[item.latitude, item.longitude]}
+          icon={item.status === 'busy' ? busyDriverIcon : onlineDriverIcon}
+          eventHandlers={{
+            click: () => onSelect(item.driver_id),
+          }}
+        />
+      ))}
+    </MapContainer>
+  )
+}
+
+function ParkOverviewPanel({
+  overview,
+  selectedDriver,
+  activeDrivers,
+  onSelectDriver,
+}: {
+  overview: ParkOverview
+  selectedDriver?: FleetDriverLocation
+  activeDrivers: FleetDriverLocation[]
+  onSelectDriver: (driverId: string) => void
+}) {
+  return (
+    <Card className="space-y-4">
+      <div>
+        <h3 className="text-base font-bold text-slate-950">Текущая информация по парку</h3>
+        <p className="text-sm text-slate-500">
+          Главные показатели по парку и водителям, которые сейчас на линии.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <OverviewMetric label="Всего водителей" value={overview.totalDrivers} tone="slate" />
+        <OverviewMetric label="На линии" value={overview.activeDrivers} tone="emerald" />
+        <OverviewMetric label="Заняты" value={overview.busyDrivers} tone="amber" />
+        <OverviewMetric label="Оффлайн" value={overview.offlineDrivers} tone="slate" />
+        <OverviewMetric label="На карте" value={overview.driversOnMap} tone="sky" />
+        <OverviewMetric label="Устаревшая гео" value={overview.staleDrivers} tone="rose" />
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Последнее обновление
+            </p>
+            <p className="mt-1 text-sm font-bold text-slate-950">
+              {formatDate(overview.lastUpdatedAt)}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Фокус карты
+            </p>
+            <p className="mt-1 text-sm font-medium text-slate-800">
+              {selectedDriver?.name ?? 'Не выбран'}
+            </p>
+          </div>
         </div>
-        <Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>
+
+        {selectedDriver ? (
+          <div className="mt-4 grid gap-3 text-sm text-slate-700">
+            <InfoLine icon={<Car className="h-4 w-4" />} label="Авто" value={formatCar(selectedDriver.car)} />
+            <InfoLine
+              icon={<MapPin className="h-4 w-4" />}
+              label="Координаты"
+              value={
+                hasLocation(selectedDriver)
+                  ? `${selectedDriver.latitude.toFixed(6)}, ${selectedDriver.longitude.toFixed(6)}`
+                  : 'нет данных'
+              }
+            />
+            <InfoLine
+              icon={<Clock className="h-4 w-4" />}
+              label="Обновлено"
+              value={formatDate(selectedDriver.updated_at)}
+            />
+          </div>
+        ) : null}
       </div>
 
-      <div className="grid gap-3 text-sm text-slate-700">
-        <InfoLine icon={<Car className="h-4 w-4" />} label="Авто" value={formatCar(item.car)} />
-        <InfoLine icon={<ShieldDot />} label="Проверка" value={statusLabel(item.verification_status)} />
-        <InfoLine
-          icon={<MapPin className="h-4 w-4" />}
-          label="Координаты"
-          value={
-            hasLocation(item)
-              ? `${item.latitude.toFixed(6)}, ${item.longitude.toFixed(6)}`
-              : 'нет данных'
-          }
-        />
-        <InfoLine
-          icon={<Clock className="h-4 w-4" />}
-          label="Обновлено"
-          value={formatDate(item.updated_at)}
-        />
-        <InfoLine
-          icon={<Navigation className="h-4 w-4" />}
-          label="Скорость"
-          value={item.speed_mps !== undefined ? `${item.speed_mps.toFixed(1)} м/с` : '-'}
-        />
-      </div>
+      {activeDrivers.length ? (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-slate-700">Водители на линии</p>
+          {activeDrivers.slice(0, 6).map((item) => (
+            <button
+              key={item.driver_id}
+              type="button"
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white p-3 text-left hover:bg-slate-50"
+              onClick={() => onSelectDriver(item.driver_id)}
+            >
+              <span>
+                <span className="block text-sm font-semibold text-slate-800">{item.name}</span>
+                <span className="text-xs text-slate-500">
+                  {hasLocation(item) ? 'геопозиция получена' : 'без геопозиции'}
+                  {item.is_stale ? ', требует обновления' : ''}
+                </span>
+              </span>
+              <Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="Нет водителей на линии" />
+      )}
+    </Card>
+  )
+}
 
-      <button
-        type="button"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 hover:text-amber-800"
-        onClick={() => onSelect(item.driver_id)}
+function OverviewMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: 'slate' | 'emerald' | 'amber' | 'sky' | 'rose'
+}) {
+  const toneClassName = {
+    slate: 'bg-slate-50 text-slate-900',
+    emerald: 'bg-emerald-50 text-emerald-700',
+    amber: 'bg-amber-50 text-amber-700',
+    sky: 'bg-sky-50 text-sky-700',
+    rose: 'bg-rose-50 text-rose-700',
+  }[tone]
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p
+        className={`mt-2 inline-flex min-w-14 justify-center rounded-xl px-3 py-2 text-xl font-bold ${toneClassName}`}
       >
-        <Navigation className="h-4 w-4" />
-        Смотреть на карте
-      </button>
+        {value}
+      </p>
     </div>
   )
 }
@@ -226,8 +455,70 @@ function InfoLine({
   )
 }
 
-function ShieldDot() {
-  return <span className="h-4 w-4 rounded-full bg-emerald-500" />
+function focusFleetMap(
+  map: YandexMapInstance,
+  drivers: Array<FleetDriverLocation & { latitude: number; longitude: number }>,
+  defaultCenter: [number, number],
+  selectedDriverId?: string,
+) {
+  const selectedDriver = selectedDriverId
+    ? drivers.find((driver) => driver.driver_id === selectedDriverId)
+    : undefined
+
+  if (selectedDriver) {
+    map.setCenter([selectedDriver.latitude, selectedDriver.longitude], 15, { duration: 200 })
+    return
+  }
+
+  if (drivers.length === 1) {
+    map.setCenter([drivers[0].latitude, drivers[0].longitude], 15, { duration: 200 })
+    return
+  }
+
+  const bounds = getBounds(
+    drivers.map((driver) => [driver.latitude, driver.longitude] as YandexCoordinates),
+  )
+  if (!bounds) {
+    map.setCenter(defaultCenter, 12, { duration: 200 })
+    return
+  }
+
+  map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 40 })
+}
+
+function getBounds(points: YandexCoordinates[]) {
+  if (!points.length) return null
+
+  const latitudes = points.map(([latitude]) => latitude)
+  const longitudes = points.map(([, longitude]) => longitude)
+
+  return [
+    [Math.min(...latitudes), Math.min(...longitudes)],
+    [Math.max(...latitudes), Math.max(...longitudes)],
+  ] as [YandexCoordinates, YandexCoordinates]
+}
+
+function buildParkOverview(
+  drivers: TaxiParkDriver[],
+  activeDrivers: FleetDriverLocation[],
+  driversWithLocation: Array<FleetDriverLocation & { latitude: number; longitude: number }>,
+): ParkOverview {
+  const busyDrivers = activeDrivers.filter((driver) => driver.status === 'busy').length
+  const staleDrivers = activeDrivers.filter((driver) => driver.is_stale).length
+  const updatedAtCandidates = activeDrivers
+    .map((driver) => driver.updated_at)
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())
+
+  return {
+    totalDrivers: drivers.length,
+    activeDrivers: activeDrivers.length,
+    busyDrivers,
+    offlineDrivers: Math.max(drivers.length - activeDrivers.length, 0),
+    driversOnMap: driversWithLocation.length,
+    staleDrivers,
+    lastUpdatedAt: updatedAtCandidates[0],
+  }
 }
 
 function mergeFleetLocations(
@@ -250,8 +541,8 @@ function mergeFleetLocations(
       driver_id: driver.id,
       user_id: driver.user_id,
       name: existing?.name ?? driver.full_name,
-      status: existing?.status ?? driver.status,
-      verification_status: existing?.verification_status ?? driver.verification_status,
+      status: driver.status ?? existing?.status,
+      verification_status: driver.verification_status ?? existing?.verification_status,
     })
   })
 
@@ -388,8 +679,11 @@ function hasLocation(item: FleetDriverLocation): item is FleetDriverLocation & {
   return item.latitude !== undefined && item.longitude !== undefined
 }
 
-function getMapCenter(items: Array<FleetDriverLocation & { latitude: number; longitude: number }>) {
-  if (!items.length) return defaultCenter
+function getMapCenter(
+  items: Array<FleetDriverLocation & { latitude: number; longitude: number }>,
+  fallbackCenter: [number, number],
+) {
+  if (!items.length) return fallbackCenter
 
   return [
     items.reduce((sum, item) => sum + item.latitude, 0) / items.length,

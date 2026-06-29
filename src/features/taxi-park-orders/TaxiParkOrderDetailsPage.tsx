@@ -167,7 +167,7 @@ export function TaxiParkOrderDetailsPage() {
           <Card className="space-y-3">
             <h2 className="text-lg font-bold text-slate-950">Информация</h2>
             <Info label="Статус" value={statusLabel(data.status)} />
-            <Info label="Водитель" value={getDriverDisplayName(data)} />
+            <Info label="Водитель" value={getDriverDisplayName(data, undefined)} />
             <Info label="Телефон пассажира" value={data.passenger_phone ?? '-'} />
             <Info label="Подача" value={data.pickup_address ?? '-'} />
             <Info label="Куда" value={data.destination_address ?? '-'} />

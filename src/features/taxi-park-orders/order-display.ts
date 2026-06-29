@@ -28,8 +28,16 @@ export function getOrderShortInfo(order?: Partial<TaxiParkOrder> | null) {
   return parts.join(' · ') || 'Информация о заказе обновляется'
 }
 
-export function getDriverDisplayName(order?: Partial<TaxiParkOrder> | null) {
-  return cleanText(order?.driver_name) ?? 'Водитель не назначен'
+export function getDriverDisplayName(
+  order?: Partial<TaxiParkOrder> | null,
+  fallbackName?: string,
+) {
+  return (
+    cleanText(order?.driver_name) ??
+    cleanText(fallbackName) ??
+    (order?.driver_id ? `Водитель ${order.driver_id.slice(0, 8)}` : undefined) ??
+    'Водитель не назначен'
+  )
 }
 
 export function getReadableOrderTitle(order?: Partial<TaxiParkOrder> | null) {
