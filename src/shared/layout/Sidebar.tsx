@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import {
   BadgeDollarSign,
   Car,
@@ -9,7 +10,6 @@ import {
   Tags,
   Users,
 } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
 import { NavLink, useNavigate } from 'react-router-dom'
 
 import { getTaxiParkSettings } from '../../features/taxi-park-settings/api'
@@ -19,7 +19,6 @@ import { Badge } from '../ui/Badge'
 import { statusLabel } from '../ui/badge-utils'
 import { Button } from '../ui/Button'
 import { cn } from '../utils/cn'
-import { basisPointsToPercent } from '../utils/format-money'
 
 type MenuItem = {
   label: string
@@ -37,6 +36,7 @@ const menuByRole: Partial<Record<UserRole, MenuItem[]>> = {
     { label: 'Dashboard', href: '/dashboard', icon: Gauge },
     { label: 'Настройки', href: '/taxi-park/settings', icon: Settings },
     { label: 'Тарифы', href: '/taxi-park/tariffs', icon: Tags },
+    { label: 'Диспетчеры', href: '/taxi-park/dispatchers', icon: Users },
     { label: 'Водители', href: '/taxi-park/drivers', icon: Users },
     { label: 'Автомобили', href: '/taxi-park/cars', icon: Car },
     { label: 'Заказы', href: '/taxi-park/orders', icon: ClipboardList },
@@ -168,7 +168,6 @@ function TaxiParkSidebarInfo({
         </Badge>
       </div>
       <div className="mt-3 grid gap-2 text-xs text-slate-300">
-        <SidebarInfoLine label="Комиссия" value={`${basisPointsToPercent(settings.commission_basis_points)}%`} />
         <SidebarInfoLine label="Поддержка" value={settings.support_phone || '-'} />
         <SidebarInfoLine label="Email" value={settings.support_email || '-'} />
       </div>

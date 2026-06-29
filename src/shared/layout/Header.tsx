@@ -14,6 +14,7 @@ const titles: Record<string, string> = {
   '/taxi-park/settings': 'Настройки таксопарка',
   '/taxi-park/tariffs': 'Тарифы',
   '/taxi-park/drivers': 'Водители',
+  '/taxi-park/dispatchers': 'Диспетчеры',
   '/taxi-park/cars': 'Автомобили',
   '/taxi-park/orders': 'Заказы',
   '/taxi-park/finance': 'Финансы таксопарка',

@@ -1,8 +1,10 @@
 import L from 'leaflet'
 import { MapPin } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet'
 
+import { appConfig } from '../../app/config'
+import { loadYandexMaps, type YandexCoordinates, type YandexMapInstance } from '../../shared/maps/yandex-loader'
 import { Button } from '../../shared/ui/Button'
 
 type LocationMode = 'pickup' | 'destination'
@@ -105,24 +107,197 @@ export function OrderLocationMap({
       </div>
 
       <div className="h-[360px] overflow-hidden rounded-2xl border border-slate-200">
-        <MapContainer center={center} zoom={13} className="h-full w-full" scrollWheelZoom>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <MapClickHandler onClick={setPoint} />
-          {pickup.latitude !== undefined && pickup.longitude !== undefined ? (
-            <Marker position={[pickup.latitude, pickup.longitude]} icon={pickupIcon} />
-          ) : null}
-          {destination.latitude !== undefined && destination.longitude !== undefined ? (
-            <Marker
-              position={[destination.latitude, destination.longitude]}
-              icon={destinationIcon}
-            />
-          ) : null}
-        </MapContainer>
+        <LocationMapCanvas
+          center={center}
+          pickup={pickup}
+          destination={destination}
+          onPointSelect={setPoint}
+        />
       </div>
     </div>
+  )
+}
+
+function LocationMapCanvas({
+  center,
+  pickup,
+  destination,
+  onPointSelect,
+}: {
+  center: [number, number]
+  pickup: Point
+  destination: Point
+  onPointSelect: (latitude: number, longitude: number) => void
+}) {
+  const [useLeafletFallback, setUseLeafletFallback] = useState(!appConfig.yandexMapsApiKey)
+
+  if (useLeafletFallback) {
+    return (
+      <LeafletLocationMapCanvas
+        center={center}
+        pickup={pickup}
+        destination={destination}
+        onPointSelect={onPointSelect}
+      />
+    )
+  }
+
+  return (
+    <YandexLocationMapCanvas
+      center={center}
+      pickup={pickup}
+      destination={destination}
+      onPointSelect={onPointSelect}
+      onFallback={() => setUseLeafletFallback(true)}
+    />
+  )
+}
+
+function YandexLocationMapCanvas({
+  center,
+  pickup,
+  destination,
+  onPointSelect,
+  onFallback,
+}: {
+  center: [number, number]
+  pickup: Point
+  destination: Point
+  onPointSelect: (latitude: number, longitude: number) => void
+  onFallback: () => void
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<YandexMapInstance | null>(null)
+  const [mapReady, setMapReady] = useState(false)
+
+  useEffect(() => {
+    let isDisposed = false
+
+    async function initializeMap() {
+      if (!containerRef.current) return
+
+      try {
+        const ymaps = await loadYandexMaps(appConfig.yandexMapsApiKey)
+        if (isDisposed || !containerRef.current) return
+
+        const map = new ymaps.Map(
+          containerRef.current,
+          {
+            center,
+            zoom: 13,
+            controls: ['zoomControl', 'fullscreenControl'],
+          },
+          { suppressMapOpenBlock: true },
+        )
+
+        map.events.add('click', (event) => {
+          const coordinates = event.get('coords')
+          if (!coordinates) return
+          onPointSelect(coordinates[0], coordinates[1])
+        })
+
+        mapRef.current = map
+        setMapReady(true)
+      } catch {
+        if (!isDisposed) onFallback()
+      }
+    }
+
+    void initializeMap()
+
+    return () => {
+      isDisposed = true
+      setMapReady(false)
+      mapRef.current?.destroy()
+      mapRef.current = null
+    }
+  }, [center, onFallback, onPointSelect])
+
+  useEffect(() => {
+    let isDisposed = false
+
+    async function syncMap() {
+      if (!mapRef.current || !mapReady) return
+
+      const ymaps = await loadYandexMaps(appConfig.yandexMapsApiKey)
+      if (isDisposed || !mapRef.current) return
+
+      mapRef.current.geoObjects.removeAll()
+
+      if (pickup.latitude !== undefined && pickup.longitude !== undefined) {
+        mapRef.current.geoObjects.add(
+          new ymaps.Placemark(
+            [pickup.latitude, pickup.longitude],
+            { hintContent: 'Точка подачи' },
+            { preset: 'islands#greenCircleDotIcon' },
+          ),
+        )
+      }
+
+      if (destination.latitude !== undefined && destination.longitude !== undefined) {
+        mapRef.current.geoObjects.add(
+          new ymaps.Placemark(
+            [destination.latitude, destination.longitude],
+            { hintContent: 'Точка назначения' },
+            { preset: 'islands#redCircleDotIcon' },
+          ),
+        )
+      }
+
+      const focusPoints = [pickup, destination]
+        .filter((point): point is Required<Point> => point.latitude !== undefined && point.longitude !== undefined)
+        .map((point) => [point.latitude, point.longitude] as YandexCoordinates)
+
+      if (focusPoints.length > 1) {
+        const bounds = getBounds(focusPoints)
+        if (bounds) {
+          mapRef.current.setBounds(bounds, { checkZoomRange: true, zoomMargin: 40 })
+        }
+      } else {
+        mapRef.current.setCenter(center, 13, { duration: 200 })
+      }
+
+      mapRef.current.container.fitToViewport()
+    }
+
+    void syncMap()
+
+    return () => {
+      isDisposed = true
+    }
+  }, [center, destination, mapReady, pickup])
+
+  return <div ref={containerRef} className="h-full w-full" />
+}
+
+function LeafletLocationMapCanvas({
+  center,
+  pickup,
+  destination,
+  onPointSelect,
+}: {
+  center: [number, number]
+  pickup: Point
+  destination: Point
+  onPointSelect: (latitude: number, longitude: number) => void
+}) {
+  return (
+    <MapContainer center={center} zoom={13} className="h-full w-full" scrollWheelZoom>
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <MapClickHandler onClick={onPointSelect} />
+      {pickup.latitude !== undefined && pickup.longitude !== undefined ? (
+        <Marker position={[pickup.latitude, pickup.longitude]} icon={pickupIcon} />
+      ) : null}
+      {destination.latitude !== undefined && destination.longitude !== undefined ? (
+        <Marker
+          position={[destination.latitude, destination.longitude]}
+          icon={destinationIcon}
+        />
+      ) : null}
+    </MapContainer>
   )
 }
 
@@ -134,6 +309,18 @@ function MapClickHandler({ onClick }: { onClick: (latitude: number, longitude: n
   })
 
   return null
+}
+
+function getBounds(points: YandexCoordinates[]) {
+  if (!points.length) return null
+
+  const latitudes = points.map(([latitude]) => latitude)
+  const longitudes = points.map(([, longitude]) => longitude)
+
+  return [
+    [Math.min(...latitudes), Math.min(...longitudes)],
+    [Math.max(...latitudes), Math.max(...longitudes)],
+  ] as [YandexCoordinates, YandexCoordinates]
 }
 
 function roundCoordinate(value: number) {
