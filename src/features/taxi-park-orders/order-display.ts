@@ -1,9 +1,11 @@
 import { formatDate } from '../../shared/utils/format-date'
 import { formatMoneyCents } from '../../shared/utils/format-money'
-import type { TaxiParkOrder } from './api'
+import type { TaxiParkOrder, TaxiParkScheduledOrder } from './api'
 
-export function getOrderRouteLabel(order?: Partial<TaxiParkOrder> | null) {
-  if (!order) return 'заказ'
+type OrderLike = Partial<TaxiParkOrder> | Partial<TaxiParkScheduledOrder> | null | undefined
+
+export function getOrderRouteLabel(order?: OrderLike) {
+  if (!order) return 'Заказ'
 
   const pickup = cleanText(order.pickup_address)
   const destination = cleanText(order.destination_address)
@@ -29,13 +31,19 @@ export function getOrderShortInfo(order?: Partial<TaxiParkOrder> | null) {
 }
 
 export function getDriverDisplayName(
-  order?: Partial<TaxiParkOrder> | null,
+  order?: Partial<TaxiParkOrder> | Partial<TaxiParkScheduledOrder> | null,
   fallbackName?: string,
 ) {
+  const driverName = hasDriverName(order) ? order.driver_name : undefined
+  const preassignedDriverId = hasPreassignedDriverId(order) ? order.preassigned_driver_id : undefined
+
   return (
-    cleanText(order?.driver_name) ??
+    cleanText(driverName) ??
     cleanText(fallbackName) ??
     (order?.driver_id ? `Водитель ${order.driver_id.slice(0, 8)}` : undefined) ??
+    (preassignedDriverId
+      ? `Предназначен ${preassignedDriverId.slice(0, 8)}`
+      : undefined) ??
     'Водитель не назначен'
   )
 }
@@ -47,4 +55,16 @@ export function getReadableOrderTitle(order?: Partial<TaxiParkOrder> | null) {
 function cleanText(value?: string | null) {
   const trimmed = value?.trim()
   return trimmed ? trimmed : undefined
+}
+
+function hasDriverName(
+  order?: Partial<TaxiParkOrder> | Partial<TaxiParkScheduledOrder> | null,
+): order is Partial<TaxiParkOrder> {
+  return Boolean(order && 'driver_name' in order)
+}
+
+function hasPreassignedDriverId(
+  order?: Partial<TaxiParkOrder> | Partial<TaxiParkScheduledOrder> | null,
+): order is Partial<TaxiParkScheduledOrder> {
+  return Boolean(order && 'preassigned_driver_id' in order)
 }
