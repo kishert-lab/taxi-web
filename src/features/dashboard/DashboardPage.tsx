@@ -12,6 +12,7 @@ import { EmptyState, Table } from '../../shared/ui/Table'
 import { formatDate } from '../../shared/utils/format-date'
 import { formatMoneyCents } from '../../shared/utils/format-money'
 import { useNotificationStore } from '../notifications/notification-store'
+import { PassengerDashboard } from '../passenger/PassengerDashboard'
 import {
   getAdminFinanceOverview,
   getDriverBalance,
@@ -29,6 +30,7 @@ export function DashboardPage() {
 
   if (user?.role === 'admin') return <AdminDashboard />
   if (user?.role === 'driver') return <DriverDashboard />
+  if (user?.role === 'passenger') return <PassengerDashboard />
   if (user?.role === 'taxi_park' || user?.role === 'dispatcher') return <TaxiParkDashboard />
 
   return (

@@ -1,17 +1,20 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   BadgeDollarSign,
   Car,
   ClipboardList,
   FileText,
   Gauge,
+  LifeBuoy,
   LogOut,
   Settings,
   Tags,
+  UserRound,
   Users,
 } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 
+import { logoutByRole } from '../../features/auth/api'
 import { getTaxiParkSettings } from '../../features/taxi-park-settings/api'
 import type { UserRole } from '../api/types'
 import { useAuthStore } from '../auth/auth-store'
@@ -52,7 +55,12 @@ const menuByRole: Partial<Record<UserRole, MenuItem[]>> = {
     { label: 'Водители', href: '/taxi-park/drivers', icon: Users },
     { label: 'Автомобили', href: '/taxi-park/cars', icon: Car },
   ],
-  passenger: [{ label: 'Dashboard', href: '/dashboard', icon: Gauge }],
+  passenger: [
+    { label: 'Dashboard', href: '/dashboard', icon: Gauge },
+    { label: 'Мои заказы', href: '/passenger/orders', icon: ClipboardList },
+    { label: 'Профиль', href: '/passenger/profile', icon: UserRound },
+    { label: 'Поддержка', href: '/passenger/support', icon: LifeBuoy },
+  ],
 }
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -66,6 +74,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     queryFn: getTaxiParkSettings,
     enabled: showTaxiParkInfo,
     staleTime: 60_000,
+  })
+  const logoutMutation = useMutation({
+    mutationFn: () => logoutByRole(user?.role),
+    onSettled: () => {
+      logout()
+      navigate('/login')
+    },
   })
 
   return (
@@ -108,13 +123,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         type="button"
         variant="ghost"
         className="justify-start text-slate-300 hover:bg-white/10 hover:text-white"
-        onClick={() => {
-          logout()
-          navigate('/login')
-        }}
+        disabled={logoutMutation.isPending}
+        onClick={() => logoutMutation.mutate()}
       >
         <LogOut className="h-4 w-4" />
-        Выйти
+        {logoutMutation.isPending ? 'Выход...' : 'Выйти'}
       </Button>
     </aside>
   )

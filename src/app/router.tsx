@@ -5,14 +5,17 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { DriverRegistrationPage } from '../features/auth/DriverRegistrationPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { DriverFinancePage } from '../features/driver-finance/DriverFinancePage'
+import { TaxiParkFinancePage } from '../features/finance/TaxiParkFinancePage'
 import { LegalDocumentsPage } from '../features/legal/LegalDocumentsPage'
 import { PublicLegalDocumentPage } from '../features/legal/PublicLegalDocumentPage'
-import { TaxiParkFinancePage } from '../features/finance/TaxiParkFinancePage'
+import { PassengerOrdersPage } from '../features/passenger/PassengerOrdersPage'
+import { PassengerProfilePage } from '../features/passenger/PassengerProfilePage'
+import { PassengerSupportPage } from '../features/passenger/PassengerSupportPage'
 import { TaxiParkCarsPage } from '../features/taxi-park-cars/TaxiParkCarsPage'
 import { TaxiParkDispatchersPage } from '../features/taxi-park-dispatchers/TaxiParkDispatchersPage'
 import { TaxiParkDriversPage } from '../features/taxi-park-drivers/TaxiParkDriversPage'
-import { TaxiParkOrdersPage } from '../features/taxi-park-orders/TaxiParkOrdersPage'
 import { TaxiParkOrderDetailsPage } from '../features/taxi-park-orders/TaxiParkOrderDetailsPage'
+import { TaxiParkOrdersPage } from '../features/taxi-park-orders/TaxiParkOrdersPage'
 import { TaxiParkSettingsPage } from '../features/taxi-park-settings/TaxiParkSettingsPage'
 import { TaxiParkTariffsPage } from '../features/taxi-park-tariffs/TaxiParkTariffsPage'
 import { AuthGuard, RoleGuard } from '../shared/auth/guards'
@@ -58,6 +61,14 @@ export const router = createBrowserRouter([
           {
             element: <RoleGuard roles={['driver']} />,
             children: [{ path: '/driver/finance', element: <DriverFinancePage /> }],
+          },
+          {
+            element: <RoleGuard roles={['passenger']} />,
+            children: [
+              { path: '/passenger/orders', element: <PassengerOrdersPage /> },
+              { path: '/passenger/profile', element: <PassengerProfilePage /> },
+              { path: '/passenger/support', element: <PassengerSupportPage /> },
+            ],
           },
         ],
       },

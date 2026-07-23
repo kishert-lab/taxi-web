@@ -19,6 +19,9 @@ const titles: Record<string, string> = {
   '/taxi-park/orders': 'Заказы',
   '/taxi-park/finance': 'Финансы таксопарка',
   '/driver/finance': 'Финансы водителя',
+  '/passenger/orders': 'Мои заказы',
+  '/passenger/profile': 'Профиль пассажира',
+  '/passenger/support': 'Поддержка',
 }
 
 export function Header({ onMenuClick }: { onMenuClick: () => void }) {
