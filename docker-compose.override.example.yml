@@ -6,7 +6,11 @@ services:
     ports:
       - "5173:80"
     environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://192.168.0.50:8080/api/v1}
-      - VITE_WS_URL=${VITE_WS_URL:-ws://192.168.0.50:8080/api/v1/ws}
+      # Default works when backend is published behind the same domain/path.
+      # For a separate backend host set, for example:
+      # VITE_API_BASE_URL=http://api.example.com/api/v1
+      # VITE_WS_URL=ws://api.example.com/api/v1/ws
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api/v1}
+      - VITE_WS_URL=${VITE_WS_URL:-}
       - VITE_USE_MOCK_API=${VITE_USE_MOCK_API:-false}
       - VITE_YANDEX_MAPS_API_KEY=${VITE_YANDEX_MAPS_API_KEY:-}
