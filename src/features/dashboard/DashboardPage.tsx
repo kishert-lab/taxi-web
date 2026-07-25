@@ -24,6 +24,7 @@ import {
   getTaxiParkTransactions,
 } from './api'
 import { TaxiParkFleetMap } from './TaxiParkFleetMap'
+import { AdminQuickActions } from '../admin/AdminQuickActions'
 
 export function DashboardPage() {
   const user = useAuthStore((state) => state.user)
@@ -62,7 +63,7 @@ function AdminDashboard() {
   ]
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard title="Общая выручка" value={formatMoneyCents(data.completed_orders_revenue)} />
         <StatCard title="Комиссии" value={formatMoneyCents(data.total_commissions)} />
@@ -81,6 +82,7 @@ function AdminDashboard() {
           </BarChart>
         </ResponsiveContainer>
       </Card>
+      <AdminQuickActions />
     </div>
   )
 }

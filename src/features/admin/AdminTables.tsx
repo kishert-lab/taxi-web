@@ -94,12 +94,12 @@ export function OrdersPage() {
       getStatus={(row) => row.status}
       statusOptions={['new', 'assigned', 'driver_arrived', 'in_progress', 'completed', 'cancelled']}
       actions={
-        <Link to="/orders/new">
+        <Link to="/admin/orders/new">
           <Button type="button">Создать</Button>
         </Link>
       }
       columns={[
-        { key: 'id', title: 'ID', sortable: true, render: (row) => <Link className="font-mono text-[#F59E0B]" to={`/orders/${row.id}`}>{row.id}</Link> },
+        { key: 'id', title: 'ID', sortable: true, render: (row) => <Link className="font-mono text-[#F59E0B]" to={`/admin/orders/${row.id}`}>{row.id}</Link> },
         { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
         { key: 'passenger_name', title: 'Пассажир', sortable: true },
         { key: 'driver_name', title: 'Водитель', render: (row) => row.driver_name ?? '—' },
@@ -120,7 +120,7 @@ export function DriversPage() {
       getStatus={(row) => row.status}
       statusOptions={['offline', 'online', 'busy', 'paused', 'blocked']}
       columns={[
-        { key: 'full_name', title: 'ФИО', sortable: true, render: (row) => <Link className="text-[#F59E0B]" to={`/drivers/${row.id}`}>{row.full_name}</Link> },
+        { key: 'full_name', title: 'ФИО', sortable: true, render: (row) => <Link className="text-[#F59E0B]" to={`/admin/drivers/${row.id}`}>{row.full_name}</Link> },
         { key: 'phone', title: 'Телефон' },
         { key: 'rating', title: 'Рейтинг', sortable: true },
         { key: 'status', title: 'Статус', render: (row) => <Badge variant={statusVariant(row.status)}>{statusLabel(row.status)}</Badge> },
