@@ -37,7 +37,7 @@ export function CreateOrderPage() {
     onSuccess: (order) => {
       toast.success('Заказ создан')
       void queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
-      navigate(`/orders/${order.id}`)
+      navigate(`/admin/orders/${order.id}`)
     },
     onError: (error) => toast.error(getApiErrorMessage(error)),
   })

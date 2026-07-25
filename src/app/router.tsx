@@ -1,6 +1,29 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import { AdminFinancePage } from '../features/admin-finance/AdminFinancePage'
+import { AdminGeocoderPage } from '../features/admin-geocoder/AdminGeocoderPage'
+import {
+  AdminUsersPage,
+  AnalyticsPage,
+  AuditLogsPage,
+  CarsPage,
+  CommissionPage,
+  DriversPage,
+  MapPage,
+  OrdersPage,
+  PassengersPage,
+  PayoutsPage,
+  PromocodesPage,
+  RolesPage,
+  SettingsPage as AdminSettingsPage,
+  SupportPage,
+  TariffsAdminPage,
+  TaxiParksPage,
+  ZonesPage,
+} from '../features/admin/AdminTables'
+import { CreateOrderPage } from '../features/admin/CreateOrderPage'
+import { DriverDetailPage } from '../features/admin/DriverDetailPage'
+import { OrderDetailPage } from '../features/admin/OrderDetailPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { DriverRegistrationPage } from '../features/auth/DriverRegistrationPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
@@ -36,7 +59,28 @@ export const router = createBrowserRouter([
           {
             element: <RoleGuard roles={['admin']} />,
             children: [
+              { path: '/admin/orders', element: <OrdersPage /> },
+              { path: '/admin/orders/new', element: <CreateOrderPage /> },
+              { path: '/admin/orders/:id', element: <OrderDetailPage /> },
+              { path: '/admin/drivers', element: <DriversPage /> },
+              { path: '/admin/drivers/:id', element: <DriverDetailPage /> },
+              { path: '/admin/cars', element: <CarsPage /> },
+              { path: '/admin/passengers', element: <PassengersPage /> },
+              { path: '/admin/taxi-parks', element: <TaxiParksPage /> },
+              { path: '/admin/tariffs', element: <TariffsAdminPage /> },
+              { path: '/admin/commissions', element: <CommissionPage /> },
               { path: '/admin/finance', element: <AdminFinancePage /> },
+              { path: '/admin/payouts', element: <PayoutsPage /> },
+              { path: '/admin/zones', element: <ZonesPage /> },
+              { path: '/admin/support', element: <SupportPage /> },
+              { path: '/admin/analytics', element: <AnalyticsPage /> },
+              { path: '/admin/map', element: <MapPage /> },
+              { path: '/admin/geocoder', element: <AdminGeocoderPage /> },
+              { path: '/admin/promocodes', element: <PromocodesPage /> },
+              { path: '/admin/users', element: <AdminUsersPage /> },
+              { path: '/admin/roles', element: <RolesPage /> },
+              { path: '/admin/audit-logs', element: <AuditLogsPage /> },
+              { path: '/admin/settings', element: <AdminSettingsPage /> },
               { path: '/admin/legal', element: <LegalDocumentsPage /> },
             ],
           },

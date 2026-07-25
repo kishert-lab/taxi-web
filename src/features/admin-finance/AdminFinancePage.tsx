@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { getApiErrorMessage } from '../../shared/api/errors'
 import { Button } from '../../shared/ui/Button'
 import { Card, StatCard } from '../../shared/ui/Card'
+import { ConfirmModal } from '../../shared/ui/ConfirmModal'
 import { Input } from '../../shared/ui/Input'
 import { Skeleton } from '../../shared/ui/Loader'
 import { formatMoneyCents } from '../../shared/utils/format-money'
@@ -15,6 +16,7 @@ import {
   getAdminTaxiParkFinanceOverview,
   getAdminTaxiParkPlatformFeeDebt,
   markAdminPlatformInvoicePaid,
+  type PlatformInvoice,
 } from '../finance/api'
 import {
   FinanceDocumentsTable,
@@ -28,6 +30,7 @@ export function AdminFinancePage() {
   const queryClient = useQueryClient()
   const [taxiParkId, setTaxiParkId] = useState('')
   const [submittedTaxiParkId, setSubmittedTaxiParkId] = useState('')
+  const [invoiceToMarkPaid, setInvoiceToMarkPaid] = useState<PlatformInvoice | null>(null)
   const [platformOverview, invoices, documents] = useQueries({
     queries: [
       { queryKey: ['admin-platform-finance-overview'], queryFn: () => getAdminPlatformFinanceOverview() },
@@ -48,6 +51,7 @@ export function AdminFinancePage() {
   const markPaidMutation = useMutation({
     mutationFn: markAdminPlatformInvoicePaid,
     onSuccess: () => {
+      setInvoiceToMarkPaid(null)
       toast.success('Счет отмечен оплаченным')
       void queryClient.invalidateQueries({ queryKey: ['admin-platform-invoices'] })
       if (submittedTaxiParkId) {
@@ -109,7 +113,7 @@ export function AdminFinancePage() {
               <Button
                 type="button"
                 disabled={markPaidMutation.isPending || invoice.status === 'paid'}
-                onClick={() => markPaidMutation.mutate(invoice.id)}
+                onClick={() => setInvoiceToMarkPaid(invoice)}
               >
                 Оплачено
               </Button>
@@ -121,6 +125,19 @@ export function AdminFinancePage() {
       <Section title="Финансовые документы">
         {documents.isLoading ? <Skeleton className="h-48" /> : <FinanceDocumentsTable documents={documents.data} />}
       </Section>
+      <ConfirmModal
+        open={Boolean(invoiceToMarkPaid)}
+        title="Подтвердить оплату счёта"
+        description={
+          invoiceToMarkPaid
+            ? `Счёт ${invoiceToMarkPaid.invoice_number ?? invoiceToMarkPaid.id} будет отмечен как оплаченный. Операцию нельзя отменить из интерфейса.`
+            : ''
+        }
+        confirmText="Отметить оплаченным"
+        isLoading={markPaidMutation.isPending}
+        onCancel={() => setInvoiceToMarkPaid(null)}
+        onConfirm={() => invoiceToMarkPaid && markPaidMutation.mutate(invoiceToMarkPaid.id)}
+      />
     </div>
   )
 }

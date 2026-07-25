@@ -7,6 +7,7 @@ import {
   Gauge,
   LifeBuoy,
   LogOut,
+  MapPinned,
   Settings,
   Tags,
   UserRound,
@@ -32,7 +33,18 @@ type MenuItem = {
 const menuByRole: Partial<Record<UserRole, MenuItem[]>> = {
   admin: [
     { label: 'Dashboard', href: '/dashboard', icon: Gauge },
+    { label: 'Заказы', href: '/admin/orders', icon: ClipboardList },
+    { label: 'Водители', href: '/admin/drivers', icon: Users },
+    { label: 'Таксопарки', href: '/admin/taxi-parks', icon: Users },
+    { label: 'Автомобили', href: '/admin/cars', icon: Car },
+    { label: 'Пассажиры', href: '/admin/passengers', icon: UserRound },
+    { label: 'Тарифы', href: '/admin/tariffs', icon: Tags },
+    { label: 'Комиссии', href: '/admin/commissions', icon: BadgeDollarSign },
     { label: 'Финансы', href: '/admin/finance', icon: BadgeDollarSign },
+    { label: 'Выплаты', href: '/admin/payouts', icon: BadgeDollarSign },
+    { label: 'Геоточки', href: '/admin/geocoder', icon: MapPinned },
+    { label: 'Поддержка', href: '/admin/support', icon: LifeBuoy },
+    { label: 'Аудит', href: '/admin/audit-logs', icon: FileText },
     { label: 'Юр. документы', href: '/admin/legal', icon: FileText },
   ],
   taxi_park: [
