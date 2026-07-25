@@ -14,12 +14,23 @@ declare global {
 const runtimeConfig = typeof window !== 'undefined' ? window.__TAXI_WEB_CONFIG__ : undefined
 
 function getConfigValue(key: keyof RuntimeConfig, fallback: string) {
-  return runtimeConfig?.[key] || import.meta.env[key] || fallback
+  if (runtimeConfig && Object.prototype.hasOwnProperty.call(runtimeConfig, key)) {
+    return runtimeConfig[key] || fallback
+  }
+
+  return import.meta.env[key] || fallback
+}
+
+function getDefaultWebSocketUrl() {
+  if (typeof window === 'undefined') return '/api/v1/ws'
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/api/v1/ws`
 }
 
 export const appConfig = {
-  apiBaseUrl: getConfigValue('VITE_API_BASE_URL', 'http://192.168.0.50:8080/api/v1'),
-  wsUrl: getConfigValue('VITE_WS_URL', 'ws://192.168.0.50:8080/api/v1/ws'),
+  apiBaseUrl: getConfigValue('VITE_API_BASE_URL', '/api/v1'),
+  wsUrl: getConfigValue('VITE_WS_URL', getDefaultWebSocketUrl()),
   yandexMapsApiKey: getConfigValue('VITE_YANDEX_MAPS_API_KEY', ''),
   useMockApi: getConfigValue('VITE_USE_MOCK_API', 'false') === 'true',
 }
