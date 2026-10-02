@@ -7,7 +7,6 @@ import { http } from '../../shared/api/http'
 import { useAuthStore } from '../../shared/auth/auth-store'
 import { useNotificationStore } from '../notifications/notification-store'
 import type { TaxiParkOrder } from '../taxi-park-orders/api'
-<<<<<<< HEAD
 import {
   getDriverDisplayName,
   getOrderShortInfo,
@@ -32,40 +31,15 @@ export type DriverLocationSnapshot = {
 }
 
 export type DriverLocationCache = Record<string, DriverLocationSnapshot>
-=======
-import { getDriverDisplayName, getOrderShortInfo, getOrderRouteLabel } from '../taxi-park-orders/order-display'
-import { createWebSocket, type WebSocketEvent } from './ws-client'
->>>>>>> 39ca61c0e4a4a33edd925074686400a364054679
-
-export type DriverLocationSnapshot = {
-  driver_id: string
-  user_id?: string
-  name?: string
-  phone?: string
-  status?: string
-  latitude?: number
-  longitude?: number
-  heading?: number
-  speed_mps?: number
-  accuracy_meters?: number
-  updated_at?: string
-  is_stale?: boolean
-}
-
-export type DriverLocationCache = Record<string, DriverLocationSnapshot>
 
 export function useWebSocket() {
   const queryClient = useQueryClient()
   const connection = useWebSocketConnection()
   const role = useAuthStore((state) => state.user?.role)
   const userId = useAuthStore((state) => state.user?.id)
-<<<<<<< HEAD
   const addChatNotification = useNotificationStore(
     (state) => state.addChatNotification,
   )
-=======
-  const addChatNotification = useNotificationStore((state) => state.addChatNotification)
->>>>>>> 39ca61c0e4a4a33edd925074686400a364054679
 
   useEffect(
     () =>
@@ -83,7 +57,6 @@ export function useWebSocket() {
           }
         },
 
-<<<<<<< HEAD
         onMessage: (message) => {
           const event = parseWebSocketEvent(message.data)
           if (!event) return
@@ -330,264 +303,6 @@ function handleChatEvent(
       orderSummary: cachedOrder ? getOrderShortInfo(cachedOrder) : undefined,
     }
 
-=======
-    let socket: WebSocket | null = null
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-    let reconnectAttempts = 0
-    let isDisposed = false
-
-    const clearReconnectTimer = () => {
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer)
-        reconnectTimer = null
-      }
-    }
-
-    const scheduleReconnect = () => {
-      if (isDisposed) return
-
-      clearReconnectTimer()
-      const reconnectDelayMs = Math.min(1000 * 2 ** reconnectAttempts, 10000)
-      reconnectAttempts += 1
-      reconnectTimer = setTimeout(connect, reconnectDelayMs)
-    }
-
-    const connect = () => {
-      if (isDisposed) return
-
-      socket = createWebSocket(accessToken)
-
-      socket.onopen = () => {
-        reconnectAttempts = 0
-
-        if (role === 'taxi_park' || role === 'dispatcher') {
-          void http.get('/taxi-park/orders', { params: { limit: 50 } })
-          void http.get('/taxi-park/drivers/locations')
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-driver-locations-snapshot'] })
-        }
-      }
-
-      socket.onmessage = (message) => {
-        const event = parseWebSocketEvent(message.data)
-        if (!event) return
-
-        const eventName = getEventName(event)
-        const eventPayload = resolveEventPayload(event)
-
-        if (eventName === 'sync.required') {
-          if (role === 'taxi_park' || role === 'dispatcher') {
-            void http.get('/taxi-park/orders')
-            void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
-          }
-          if (role === 'driver') {
-            void http.get('/driver/orders/current')
-            void queryClient.invalidateQueries({ queryKey: ['driver-orders-history'] })
-          }
-          if (role === 'passenger') {
-            void http.get('/passenger/orders/current')
-          }
-        }
-
-        if (orderEventNames.has(eventName ?? '')) {
-          const orderId = getOrderId(eventPayload)
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
-
-          if (orderId) {
-            void queryClient.invalidateQueries({ queryKey: ['taxi-park-order', orderId] })
-          }
-        }
-
-        if (chatEventNames.has(eventName ?? '')) {
-          handleChatEvent(eventPayload, queryClient, userId, addChatNotification)
-        }
-
-        if (eventName === 'driver.location.updated' || eventName === 'driver.location_updated') {
-          const location = normalizeDriverLocationEvent(eventPayload)
-
-          if (location) {
-            queryClient.setQueryData<DriverLocationCache>(
-              ['taxi-park-driver-locations'],
-              (previous) => ({
-                ...(previous ?? {}),
-                [location.driver_id]: location,
-                ...(location.user_id ? { [location.user_id]: location } : {}),
-              }),
-            )
-          }
-
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-order'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-drivers'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-driver-locations-snapshot'] })
-        }
-
-        if (isDriverStatusEvent(eventName) || hasDriverStatusPayload(eventPayload)) {
-          const statusUpdate = normalizeDriverStatusEvent(eventPayload, eventName)
-
-          if (statusUpdate) {
-            showDriverStatusToast(statusUpdate)
-            queryClient.setQueryData<DriverLocationCache>(
-              ['taxi-park-driver-locations'],
-              (previous) => applyDriverStatusToLocationCache(previous, statusUpdate),
-            )
-          }
-
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-order'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-drivers'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-drivers', ''] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-driver-locations-snapshot'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-balance'] })
-        }
-      }
-
-      socket.onclose = () => {
-        socket = null
-        scheduleReconnect()
-      }
-
-      socket.onerror = () => {
-        socket?.close()
-      }
-    }
-
-    connect()
-
-    return () => {
-      isDisposed = true
-      clearReconnectTimer()
-      socket?.close()
-    }
-  }, [accessToken, addChatNotification, queryClient, role, userId])
-}
-
-const orderEventNames = new Set([
-  'order.offer',
-  'order.driver_assigned',
-  'order.driver_arriving',
-  'order.driver_waiting',
-  'order.trip_started',
-  'order.updated',
-  'order.cancelled',
-  'order.completed',
-  'no_drivers_found',
-])
-
-const driverStatusEventNames = new Set([
-  'driver.online',
-  'driver.offline',
-  'driver.paused',
-  'driver.status.online',
-  'driver.status.offline',
-  'driver.status_updated',
-  'driver.status.updated',
-  'driver.line.started',
-  'driver.line.stopped',
-  'driver.line_started',
-  'driver.line_stopped',
-  'driver.went_online',
-  'driver.went_offline',
-  'driver.status_changed',
-  'driver.status.changed',
-  'driver.line_online',
-  'driver.line_offline',
-  'driver.line.online',
-  'driver.line.offline',
-  'driver.online_status_changed',
-  'driver.availability_changed',
-  'driver.availability.changed',
-])
-
-const chatEventNames = new Set([
-  'chat.message',
-  'chat.message_created',
-  'chat.message.created',
-  'chat.message_sent',
-  'chat.message.sent',
-])
-
-function handleChatEvent(
-  eventPayload: unknown,
-  queryClient: QueryClient,
-  currentUserId: string | undefined,
-  addChatNotification: ReturnType<typeof useNotificationStore.getState>['addChatNotification'],
-) {
-  const chatMessage = normalizeChatMessageEvent(eventPayload)
-  const orderId = chatMessage?.orderId ?? getOrderId(eventPayload)
-
-  if (!orderId) return
-
-  if (chatMessage) {
-    queryClient.setQueryData<{ thread_id?: string; chat_type?: string; messages: Array<{
-      id: string
-      order_id?: string
-      thread_id?: string
-      chat_type?: string
-      sender_user_id?: string
-      sender_role?: string
-      body: string
-      created_at: string
-    }> }>(
-      ['taxi-park-order-driver-chat', orderId],
-      (previous) => {
-        if (!previous) {
-          return {
-            thread_id: undefined,
-            chat_type: 'dispatcher_driver',
-            messages: [
-              {
-                id: chatMessage.id,
-                order_id: orderId,
-                thread_id: '',
-                chat_type: 'dispatcher_driver',
-                sender_user_id: chatMessage.senderUserId,
-                sender_role: chatMessage.senderRole,
-                body: chatMessage.body,
-                created_at: chatMessage.createdAt,
-              },
-            ],
-          }
-        }
-
-        if (previous.messages.some((message) => message.id === chatMessage.id)) {
-          return previous
-        }
-
-        return {
-          ...previous,
-          messages: [
-            ...previous.messages,
-            {
-              id: chatMessage.id,
-              order_id: orderId,
-              thread_id: previous.thread_id,
-              chat_type: previous.chat_type,
-              sender_user_id: chatMessage.senderUserId,
-              sender_role: chatMessage.senderRole,
-              body: chatMessage.body,
-              created_at: chatMessage.createdAt,
-            },
-          ],
-        }
-      },
-    )
-  }
-
-  if (chatMessage && isIncomingDriverMessage(chatMessage, currentUserId)) {
-    const cachedOrder = findCachedOrder(queryClient, orderId)
-    const driverName =
-      chatMessage.senderName ??
-      (cachedOrder ? getDriverDisplayName(cachedOrder) : undefined)
-    const notification = {
-      ...chatMessage,
-      senderName: driverName,
-      driverName,
-      orderTitle: cachedOrder ? getOrderRouteLabel(cachedOrder) : undefined,
-      orderSummary: cachedOrder ? getOrderShortInfo(cachedOrder) : undefined,
-    }
-
->>>>>>> 39ca61c0e4a4a33edd925074686400a364054679
     addChatNotification(notification)
     showChatToast(orderId, notification)
   }
