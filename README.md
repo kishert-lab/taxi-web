@@ -28,7 +28,7 @@ Copy `.env.example` if custom values are needed.
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080/api/v1
-VITE_WS_URL=ws://localhost:8080/ws
+VITE_WS_URL=ws://localhost:8080/api/v1/ws
 VITE_YANDEX_MAPS_API_KEY=
 VITE_USE_MOCK_API=true
 ```
@@ -70,6 +70,42 @@ Priority:
 5. global
 
 The UI stores percent values for admins and sends integer basis points to API-compatible services.
+
+## Docker Compose
+
+Create `.env` next to `docker-compose.yml` with the browser-facing endpoints:
+
+```env
+VITE_API_BASE_URL=https://taxi.dev.wkfc.ru/api/v1
+VITE_WS_URL=wss://taxi.dev.wkfc.ru/api/v1/ws
+VITE_USE_MOCK_API=false
+```
+
+```bash
+docker compose build taxi-web
+docker compose up -d taxi-web
+```
+
+Compose passes these values as build arguments and container environment variables.
+The image retains the build values as defaults; container environment variables
+can override them without rebuilding. On startup, `docker-entrypoint.sh` writes
+`env-config.js`, which the frontend reads before the compiled Vite settings.
+Local `.env*` files are excluded from the build context.
+
+For another environment file, use `docker compose --env-file .env.production build taxi-web`
+and the same `--env-file` when running `up`. If using a Compose file from another
+repository, copy the `build.args` and `environment` settings from this repository's
+`docker-compose.override.example.yml` and adjust `build.context`.
+
+Verify the effective Compose settings with `docker compose config` and the
+generated browser configuration with:
+
+```bash
+docker compose exec taxi-web cat /usr/share/nginx/html/env-config.js
+```
+
+Only public frontend configuration belongs in `VITE_*` variables. For direct
+`docker build`, pass these values using `--build-arg`; it does not read `.env`.
 
 ## Docker Registry Push
 

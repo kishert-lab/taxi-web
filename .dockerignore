@@ -4,5 +4,7 @@ dist
 .vscode
 .agents
 npm-debug.log
+.env
+.env.*
 Dockerfile
 docker-compose*.yml
