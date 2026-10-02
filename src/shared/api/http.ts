@@ -27,6 +27,7 @@ async function refreshAccessToken() {
     throw new Error('Refresh token is missing')
   }
 
+<<<<<<< HEAD
   const ensureCurrentSession = () => {
     if (
       getRefreshToken() !== refreshToken ||
@@ -61,6 +62,31 @@ async function refreshAccessToken() {
   const { access_token: accessToken, refresh_token: nextRefreshToken } =
     response.data.data
   ensureCurrentSession()
+=======
+  if (user?.role === 'passenger') {
+    const response = await axios.post<ApiResponse<{ access_token: string; refresh_token: string }>>(
+      `${appConfig.apiBaseUrl}/passenger/auth/refresh`,
+      {
+        refresh_token: refreshToken,
+      },
+    )
+
+    const { access_token: accessToken, refresh_token: nextRefreshToken } = response.data.data
+    setTokens(accessToken, nextRefreshToken)
+    useAuthStore.setState({ accessToken })
+
+    return accessToken
+  }
+
+  const response = await axios.post<ApiResponse<{ access_token: string; refresh_token: string }>>(
+    `${appConfig.apiBaseUrl}/auth/refresh`,
+    {
+      refresh_token: refreshToken,
+    },
+  )
+
+  const { access_token: accessToken, refresh_token: nextRefreshToken } = response.data.data
+>>>>>>> 39ca61c0e4a4a33edd925074686400a364054679
   setTokens(accessToken, nextRefreshToken)
   useAuthStore.setState({ accessToken })
 

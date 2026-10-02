@@ -19,10 +19,23 @@ export class AdminWebSocketService {
   }
 
   connect() {
+<<<<<<< HEAD
     if (this.unsubscribe) return
     this.unsubscribe = this.connection.subscribe({
       onMessage: (message) => this.handleMessage(message.data),
     })
+=======
+    const accessToken = getAccessToken()
+    if (!accessToken || this.socket) return
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const baseUrl = `${protocol}//${window.location.host}`
+    const url = new URL(appConfig.wsUrl, baseUrl)
+    url.searchParams.set('token', accessToken)
+    this.socket = new WebSocket(url.toString())
+    this.socket.onmessage = (message) => this.handleMessage(message.data)
+    this.socket.onclose = () => this.scheduleReconnect()
+>>>>>>> 39ca61c0e4a4a33edd925074686400a364054679
   }
 
   disconnect() {
