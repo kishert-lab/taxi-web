@@ -1,7 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 
-import { appConfig } from '../../app/config'
-import { getAccessToken } from '../../shared/auth/token-storage'
+import { WebSocketConnection } from '../websocket/ws-connection'
 
 export type AdminWebSocketEvent =
   | { type: 'order.created' | 'order.updated'; payload: { id: string } }
@@ -10,38 +9,43 @@ export type AdminWebSocketEvent =
   | { type: string; payload?: unknown }
 
 export class AdminWebSocketService {
-  private socket: WebSocket | null = null
-  private reconnectTimer: number | null = null
+  private unsubscribe: (() => void) | null = null
+  private readonly connection: WebSocketConnection
   private readonly queryClient: QueryClient
 
-  constructor(queryClient: QueryClient) {
+  constructor(queryClient: QueryClient, connection: WebSocketConnection) {
     this.queryClient = queryClient
+    this.connection = connection
   }
 
   connect() {
-    const accessToken = getAccessToken()
-    if (!accessToken || this.socket) return
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const baseUrl = `${protocol}//${window.location.host}`
-    const url = new URL(appConfig.wsUrl, baseUrl)
-    url.searchParams.set('token', accessToken)
-    this.socket = new WebSocket(url.toString())
-    this.socket.onmessage = (message) => this.handleMessage(message.data)
-    this.socket.onclose = () => this.scheduleReconnect()
+    if (this.unsubscribe) return
+    this.unsubscribe = this.connection.subscribe({
+      onMessage: (message) => this.handleMessage(message.data),
+    })
   }
 
   disconnect() {
-    if (this.reconnectTimer) {
-      window.clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
-    this.socket?.close()
-    this.socket = null
+    this.unsubscribe?.()
+    this.unsubscribe = null
   }
 
   private handleMessage(rawMessage: string) {
-    const event = JSON.parse(rawMessage) as AdminWebSocketEvent
+    let event: AdminWebSocketEvent
+    try {
+      event = JSON.parse(rawMessage) as AdminWebSocketEvent
+      if (!event || typeof event.type !== 'string') return
+    } catch {
+      console.warn('Invalid admin WebSocket event')
+      return
+    }
+
+    if (event.type === 'sync.required') {
+      void this.queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
+      void this.queryClient.invalidateQueries({ queryKey: ['admin-drivers'] })
+      void this.queryClient.invalidateQueries({ queryKey: ['admin-support'] })
+      return
+    }
 
     if (event.type === 'order.created' || event.type === 'order.updated') {
       void this.queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
@@ -56,10 +60,5 @@ export class AdminWebSocketService {
     if (event.type === 'notification') {
       void this.queryClient.invalidateQueries({ queryKey: ['admin-support'] })
     }
-  }
-
-  private scheduleReconnect() {
-    this.socket = null
-    this.reconnectTimer = window.setTimeout(() => this.connect(), 3000)
   }
 }

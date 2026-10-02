@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { Toaster } from 'react-hot-toast'
+import { WebSocketProvider } from '../features/websocket/WebSocketProvider'
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -17,7 +18,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <WebSocketProvider>{children}</WebSocketProvider>
       <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
     </QueryClientProvider>
   )

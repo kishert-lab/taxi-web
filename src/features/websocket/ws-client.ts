@@ -8,10 +8,16 @@ export type WebSocketEvent =
   | { type: 'notification'; payload: unknown }
   | { type?: string; event?: string; payload?: unknown }
 
-export function createWebSocket(accessToken: string) {
+export function getWebSocketEndpoint() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const baseUrl = `${protocol}//${window.location.host}`
   const url = new URL(appConfig.wsUrl, baseUrl)
-  url.searchParams.set('token', accessToken)
-  return new WebSocket(url.toString())
+  url.pathname = '/api/v1/ws'
+  url.search = ''
+  url.hash = ''
+  return url.toString()
+}
+
+export function createWebSocket(accessToken: string, endpoint = getWebSocketEndpoint()) {
+  return new WebSocket(`${endpoint}?token=${encodeURIComponent(accessToken)}`)
 }

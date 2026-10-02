@@ -7,8 +7,13 @@ import { http } from '../../shared/api/http'
 import { useAuthStore } from '../../shared/auth/auth-store'
 import { useNotificationStore } from '../notifications/notification-store'
 import type { TaxiParkOrder } from '../taxi-park-orders/api'
-import { getDriverDisplayName, getOrderShortInfo, getOrderRouteLabel } from '../taxi-park-orders/order-display'
-import { createWebSocket, type WebSocketEvent } from './ws-client'
+import {
+  getDriverDisplayName,
+  getOrderShortInfo,
+  getOrderRouteLabel,
+} from '../taxi-park-orders/order-display'
+import type { WebSocketEvent } from './ws-client'
+import { useWebSocketConnection } from './ws-context'
 
 export type DriverLocationSnapshot = {
   driver_id: string
@@ -29,143 +34,148 @@ export type DriverLocationCache = Record<string, DriverLocationSnapshot>
 
 export function useWebSocket() {
   const queryClient = useQueryClient()
-  const accessToken = useAuthStore((state) => state.accessToken)
+  const connection = useWebSocketConnection()
   const role = useAuthStore((state) => state.user?.role)
   const userId = useAuthStore((state) => state.user?.id)
-  const addChatNotification = useNotificationStore((state) => state.addChatNotification)
+  const addChatNotification = useNotificationStore(
+    (state) => state.addChatNotification,
+  )
 
-  useEffect(() => {
-    if (!accessToken) return
-
-    let socket: WebSocket | null = null
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-    let reconnectAttempts = 0
-    let isDisposed = false
-
-    const clearReconnectTimer = () => {
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer)
-        reconnectTimer = null
-      }
-    }
-
-    const scheduleReconnect = () => {
-      if (isDisposed) return
-
-      clearReconnectTimer()
-      const reconnectDelayMs = Math.min(1000 * 2 ** reconnectAttempts, 10000)
-      reconnectAttempts += 1
-      reconnectTimer = setTimeout(connect, reconnectDelayMs)
-    }
-
-    const connect = () => {
-      if (isDisposed) return
-
-      socket = createWebSocket(accessToken)
-
-      socket.onopen = () => {
-        reconnectAttempts = 0
-
-        if (role === 'taxi_park' || role === 'dispatcher') {
-          void http.get('/taxi-park/orders', { params: { limit: 50 } })
-          void http.get('/taxi-park/drivers/locations')
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-driver-locations-snapshot'] })
-        }
-      }
-
-      socket.onmessage = (message) => {
-        const event = parseWebSocketEvent(message.data)
-        if (!event) return
-
-        const eventName = getEventName(event)
-        const eventPayload = resolveEventPayload(event)
-
-        if (eventName === 'sync.required') {
+  useEffect(
+    () =>
+      connection.subscribe({
+        onOpen: () => {
           if (role === 'taxi_park' || role === 'dispatcher') {
-            void http.get('/taxi-park/orders')
-            void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
+            void http.get('/taxi-park/orders', { params: { limit: 50 } })
+            void http.get('/taxi-park/drivers/locations')
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-orders'],
+            })
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-driver-locations-snapshot'],
+            })
           }
-          if (role === 'driver') {
-            void http.get('/driver/orders/current')
-            void queryClient.invalidateQueries({ queryKey: ['driver-orders-history'] })
+        },
+
+        onMessage: (message) => {
+          const event = parseWebSocketEvent(message.data)
+          if (!event) return
+
+          const eventName = getEventName(event)
+          const eventPayload = resolveEventPayload(event)
+
+          if (eventName === 'sync.required') {
+            if (role === 'taxi_park' || role === 'dispatcher') {
+              void http.get('/taxi-park/orders')
+              void queryClient.invalidateQueries({
+                queryKey: ['taxi-park-orders'],
+              })
+            }
+            if (role === 'driver') {
+              void http.get('/driver/orders/current')
+              void queryClient.invalidateQueries({
+                queryKey: ['driver-orders-history'],
+              })
+            }
+            if (role === 'passenger') {
+              void http.get('/passenger/orders/current')
+            }
           }
-          if (role === 'passenger') {
-            void http.get('/passenger/orders/current')
+
+          if (orderEventNames.has(eventName ?? '')) {
+            const orderId = getOrderId(eventPayload)
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-orders'],
+            })
+
+            if (orderId) {
+              void queryClient.invalidateQueries({
+                queryKey: ['taxi-park-order', orderId],
+              })
+            }
           }
-        }
 
-        if (orderEventNames.has(eventName ?? '')) {
-          const orderId = getOrderId(eventPayload)
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
-
-          if (orderId) {
-            void queryClient.invalidateQueries({ queryKey: ['taxi-park-order', orderId] })
-          }
-        }
-
-        if (chatEventNames.has(eventName ?? '')) {
-          handleChatEvent(eventPayload, queryClient, userId, addChatNotification)
-        }
-
-        if (eventName === 'driver.location.updated' || eventName === 'driver.location_updated') {
-          const location = normalizeDriverLocationEvent(eventPayload)
-
-          if (location) {
-            queryClient.setQueryData<DriverLocationCache>(
-              ['taxi-park-driver-locations'],
-              (previous) => ({
-                ...(previous ?? {}),
-                [location.driver_id]: location,
-                ...(location.user_id ? { [location.user_id]: location } : {}),
-              }),
+          if (chatEventNames.has(eventName ?? '')) {
+            handleChatEvent(
+              eventPayload,
+              queryClient,
+              userId,
+              addChatNotification,
             )
           }
 
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-order'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-drivers'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-driver-locations-snapshot'] })
-        }
+          if (
+            eventName === 'driver.location.updated' ||
+            eventName === 'driver.location_updated'
+          ) {
+            const location = normalizeDriverLocationEvent(eventPayload)
 
-        if (isDriverStatusEvent(eventName) || hasDriverStatusPayload(eventPayload)) {
-          const statusUpdate = normalizeDriverStatusEvent(eventPayload, eventName)
+            if (location) {
+              queryClient.setQueryData<DriverLocationCache>(
+                ['taxi-park-driver-locations'],
+                (previous) => ({
+                  ...(previous ?? {}),
+                  [location.driver_id]: location,
+                  ...(location.user_id ? { [location.user_id]: location } : {}),
+                }),
+              )
+            }
 
-          if (statusUpdate) {
-            showDriverStatusToast(statusUpdate)
-            queryClient.setQueryData<DriverLocationCache>(
-              ['taxi-park-driver-locations'],
-              (previous) => applyDriverStatusToLocationCache(previous, statusUpdate),
-            )
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-orders'],
+            })
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-order'],
+            })
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-drivers'],
+            })
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-driver-locations-snapshot'],
+            })
           }
 
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-orders'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-order'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-drivers'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-drivers', ''] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-driver-locations-snapshot'] })
-          void queryClient.invalidateQueries({ queryKey: ['taxi-park-balance'] })
-        }
-      }
+          if (
+            isDriverStatusEvent(eventName) ||
+            hasDriverStatusPayload(eventPayload)
+          ) {
+            const statusUpdate = normalizeDriverStatusEvent(
+              eventPayload,
+              eventName,
+            )
 
-      socket.onclose = () => {
-        socket = null
-        scheduleReconnect()
-      }
+            if (statusUpdate) {
+              showDriverStatusToast(statusUpdate)
+              queryClient.setQueryData<DriverLocationCache>(
+                ['taxi-park-driver-locations'],
+                (previous) =>
+                  applyDriverStatusToLocationCache(previous, statusUpdate),
+              )
+            }
 
-      socket.onerror = () => {
-        socket?.close()
-      }
-    }
-
-    connect()
-
-    return () => {
-      isDisposed = true
-      clearReconnectTimer()
-      socket?.close()
-    }
-  }, [accessToken, addChatNotification, queryClient, role, userId])
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-orders'],
+            })
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-order'],
+            })
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-drivers'],
+            })
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-drivers', ''],
+            })
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-driver-locations-snapshot'],
+            })
+            void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-balance'],
+            })
+          }
+        },
+      }),
+    [connection, addChatNotification, queryClient, role, userId],
+  )
 }
 
 const orderEventNames = new Set([
