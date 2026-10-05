@@ -21,6 +21,7 @@ export class AdminWebSocketService {
   connect() {
     if (this.unsubscribe) return
     this.unsubscribe = this.connection.subscribe({
+      name: 'admin-data',
       onMessage: (message) => this.handleMessage(message.data),
     })
   }

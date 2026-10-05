@@ -3,6 +3,7 @@ type RuntimeConfig = {
   VITE_WS_URL?: string
   VITE_YANDEX_MAPS_API_KEY?: string
   VITE_USE_MOCK_API?: string
+  VITE_WS_DEBUG?: string
 }
 
 declare global {
@@ -11,10 +12,14 @@ declare global {
   }
 }
 
-const runtimeConfig = typeof window !== 'undefined' ? window.__TAXI_WEB_CONFIG__ : undefined
+const runtimeConfig =
+  typeof window !== 'undefined' ? window.__TAXI_WEB_CONFIG__ : undefined
 
 function getConfigValue(key: keyof RuntimeConfig, fallback: string) {
-  if (runtimeConfig && Object.prototype.hasOwnProperty.call(runtimeConfig, key)) {
+  if (
+    runtimeConfig &&
+    Object.prototype.hasOwnProperty.call(runtimeConfig, key)
+  ) {
     return runtimeConfig[key] || fallback
   }
 
@@ -33,4 +38,5 @@ export const appConfig = {
   wsUrl: getConfigValue('VITE_WS_URL', getDefaultWebSocketUrl()),
   yandexMapsApiKey: getConfigValue('VITE_YANDEX_MAPS_API_KEY', ''),
   useMockApi: getConfigValue('VITE_USE_MOCK_API', 'false') === 'true',
+  webSocketDebug: getConfigValue('VITE_WS_DEBUG', 'false') === 'true',
 }

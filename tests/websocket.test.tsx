@@ -11,6 +11,10 @@ import { useWebSocket } from '../src/features/websocket/use-mobile-ws'
 import { useAdminWebSocket } from '../src/features/admin/use-admin-websocket'
 import { WebSocketConnection } from '../src/features/websocket/ws-connection'
 import { createWebSocket } from '../src/features/websocket/ws-client'
+import {
+  initialWebSocketDiagnostics,
+  useWebSocketStore,
+} from '../src/features/websocket/ws-state'
 
 vi.mock('../src/shared/api/http', () => ({
   http: { get: vi.fn().mockResolvedValue({ data: {} }) },
@@ -29,6 +33,7 @@ class FakeWebSocket {
   onclose: ((event: { code: number }) => void) | null = null
   onerror: (() => void) | null = null
   onmessage: ((event: { data: string }) => void) | null = null
+  send = vi.fn()
   close = vi.fn((...args: [number, string]) => {
     void args
     this.readyState = FakeWebSocket.CLOSING
@@ -90,17 +95,27 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  vi.useFakeTimers({
+    toFake: [
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+      'Date',
+    ],
+  })
   vi.clearAllMocks()
   vi.stubGlobal('WebSocket', FakeWebSocket)
   FakeWebSocket.instances = []
   appConfig.wsUrl = endpoint
   appConfig.useMockApi = false
+  useWebSocketStore.setState(initialWebSocketDiagnostics)
   session()
 })
 afterEach(() => {
   cleanup()
   useAuthStore.getState().logout()
+  useWebSocketStore.setState(initialWebSocketDiagnostics)
   vi.useRealTimers()
   vi.unstubAllGlobals()
 })
@@ -170,7 +185,7 @@ describe('application WebSocket lifecycle', () => {
     )
     act(() => FakeWebSocket.instances[1].open())
     await advance(0)
-    expect(vi.getTimerCount()).toBe(0)
+    expect(vi.getTimerCount()).toBe(1)
   })
 
   it('waits for the old close event on user and host changes', async () => {
@@ -233,6 +248,21 @@ describe('application WebSocket lifecycle', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
+  it('publishes connection diagnostics without clearing query data', async () => {
+    render(<Consumer />, { wrapper: Wrapper })
+    await flush()
+    expect(useWebSocketStore.getState().status).toBe('connecting')
+    expect(useWebSocketStore.getState().subscriptions).toContain(
+      'dispatcher-data',
+    )
+    act(() => FakeWebSocket.instances[0].open())
+    expect(useWebSocketStore.getState().status).toBe('connected')
+    expect(useWebSocketStore.getState().lastConnectedAt).not.toBeNull()
+    act(() => FakeWebSocket.instances[0].finishClose(1006))
+    expect(useWebSocketStore.getState().status).toBe('reconnecting')
+    expect(useWebSocketStore.getState().lastError).toContain('code=1006')
+  })
+
   it.each(['logout', 'unmount'] as const)(
     'clears pending retries on %s',
     async (action) => {
@@ -283,7 +313,9 @@ describe('application WebSocket lifecycle', () => {
     await advance(1000)
     expect(refreshSessionAccessToken).toHaveBeenCalledTimes(1)
     expect(FakeWebSocket.instances).toHaveLength(2)
-    expect(FakeWebSocket.instances[1].url).toBe(`${endpoint}?token=${encodeURIComponent(nextToken)}`)
+    expect(FakeWebSocket.instances[1].url).toBe(
+      `${endpoint}?token=${encodeURIComponent(nextToken)}`,
+    )
   })
 
   it('does not duplicate connections during StrictMode effect replay', async () => {
@@ -334,7 +366,7 @@ describe('connection service', () => {
     connection.setSession({ userId: 'user-1', endpoint })
     connection.subscribe({ onMessage: vi.fn() })
     await flush()
-    for (const delay of [1000, 2000, 4000, 8000, 16000, 30000, 30000]) {
+    for (const delay of [1000, 2000, 5000, 10_000, 30_000, 60_000, 60_000]) {
       const count = FakeWebSocket.instances.length
       FakeWebSocket.instances[count - 1].finishClose()
       await advance(delay - 1)
@@ -347,6 +379,61 @@ describe('connection service', () => {
     FakeWebSocket.instances[count - 1].finishClose()
     await advance(1000)
     expect(FakeWebSocket.instances).toHaveLength(count + 1)
+    connection.disconnect()
+  })
+
+  it('pauses reconnects while offline and reconnects after the network returns', async () => {
+    const connection = new WebSocketConnection({
+      getAccessToken: async () => 'token',
+      createSocket: createWebSocket,
+    })
+    connection.setSession({ userId: 'user-1', endpoint })
+    connection.subscribe({ name: 'orders', onMessage: vi.fn() })
+    await flush()
+    const first = FakeWebSocket.instances[0]
+    connection.pauseForOffline()
+    expect(first.close).toHaveBeenCalledWith(1000, 'offline')
+    first.finishClose(1000)
+    await advance(60_000)
+    expect(FakeWebSocket.instances).toHaveLength(1)
+    connection.resumeAfterOnline()
+    await flush()
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    connection.disconnect()
+  })
+
+  it('sends heartbeat pings only while the socket is open', async () => {
+    const connection = new WebSocketConnection({
+      getAccessToken: async () => 'token',
+      createSocket: createWebSocket,
+    })
+    connection.setSession({ userId: 'user-1', endpoint })
+    connection.subscribe({ onMessage: vi.fn() })
+    await flush()
+    const socket = FakeWebSocket.instances[0]
+    socket.open()
+    await advance(25_000)
+    expect(socket.send).toHaveBeenCalledWith(
+      expect.stringMatching(/^\{"event":"ping","occurred_at":".+"\}$/),
+    )
+    connection.disconnect()
+    await advance(25_000)
+    expect(socket.send).toHaveBeenCalledTimes(1)
+  })
+
+  it('force reconnects a socket that is no longer open without waiting for backoff', async () => {
+    const connection = new WebSocketConnection({
+      getAccessToken: async () => 'token',
+      createSocket: createWebSocket,
+    })
+    connection.setSession({ userId: 'user-1', endpoint })
+    connection.subscribe({ onMessage: vi.fn() })
+    await flush()
+    const first = FakeWebSocket.instances[0]
+    first.finishClose(1006)
+    connection.forceReconnect('tab became visible')
+    await flush()
+    expect(FakeWebSocket.instances).toHaveLength(2)
     connection.disconnect()
   })
 })

@@ -63,8 +63,20 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
     updateSession()
     const unsubscribe = useAuthStore.subscribe(updateSession)
+    const handleOffline = () => connection.pauseForOffline()
+    const handleOnline = () => connection.resumeAfterOnline()
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine)
+        connection.forceReconnect('tab became visible')
+    }
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('online', handleOnline)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       unsubscribe()
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('online', handleOnline)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       connection.disconnect('unmount')
     }
   }, [connection, endpoint])

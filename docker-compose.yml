@@ -7,6 +7,7 @@ services:
         VITE_WS_URL: ${VITE_WS_URL:-}
         VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
         VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+        VITE_WS_DEBUG: ${VITE_WS_DEBUG:-false}
     image: registry.dev.it59com.ru/taxi-platform/taxi-web:latest
     ports:
       - "5173:80"
@@ -15,3 +16,4 @@ services:
       VITE_WS_URL: ${VITE_WS_URL:-}
       VITE_USE_MOCK_API: ${VITE_USE_MOCK_API:-false}
       VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+      VITE_WS_DEBUG: ${VITE_WS_DEBUG:-false}

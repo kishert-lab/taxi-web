@@ -44,6 +44,7 @@ export function useWebSocket() {
   useEffect(
     () =>
       connection.subscribe({
+        name: 'dispatcher-data',
         onOpen: () => {
           if (role === 'taxi_park' || role === 'dispatcher') {
             void http.get('/taxi-park/orders', { params: { limit: 50 } })
@@ -227,7 +228,9 @@ function handleChatEvent(
   eventPayload: unknown,
   queryClient: QueryClient,
   currentUserId: string | undefined,
-  addChatNotification: ReturnType<typeof useNotificationStore.getState>['addChatNotification'],
+  addChatNotification: ReturnType<
+    typeof useNotificationStore.getState
+  >['addChatNotification'],
 ) {
   const chatMessage = normalizeChatMessageEvent(eventPayload)
   const orderId = chatMessage?.orderId ?? getOrderId(eventPayload)
@@ -235,50 +238,30 @@ function handleChatEvent(
   if (!orderId) return
 
   if (chatMessage) {
-    queryClient.setQueryData<{ thread_id?: string; chat_type?: string; messages: Array<{
-      id: string
-      order_id?: string
+    queryClient.setQueryData<{
       thread_id?: string
       chat_type?: string
-      sender_user_id?: string
-      sender_role?: string
-      body: string
-      created_at: string
-    }> }>(
-      ['taxi-park-order-driver-chat', orderId],
-      (previous) => {
-        if (!previous) {
-          return {
-            thread_id: undefined,
-            chat_type: 'dispatcher_driver',
-            messages: [
-              {
-                id: chatMessage.id,
-                order_id: orderId,
-                thread_id: '',
-                chat_type: 'dispatcher_driver',
-                sender_user_id: chatMessage.senderUserId,
-                sender_role: chatMessage.senderRole,
-                body: chatMessage.body,
-                created_at: chatMessage.createdAt,
-              },
-            ],
-          }
-        }
-
-        if (previous.messages.some((message) => message.id === chatMessage.id)) {
-          return previous
-        }
-
+      messages: Array<{
+        id: string
+        order_id?: string
+        thread_id?: string
+        chat_type?: string
+        sender_user_id?: string
+        sender_role?: string
+        body: string
+        created_at: string
+      }>
+    }>(['taxi-park-order-driver-chat', orderId], (previous) => {
+      if (!previous) {
         return {
-          ...previous,
+          thread_id: undefined,
+          chat_type: 'dispatcher_driver',
           messages: [
-            ...previous.messages,
             {
               id: chatMessage.id,
               order_id: orderId,
-              thread_id: previous.thread_id,
-              chat_type: previous.chat_type,
+              thread_id: '',
+              chat_type: 'dispatcher_driver',
               sender_user_id: chatMessage.senderUserId,
               sender_role: chatMessage.senderRole,
               body: chatMessage.body,
@@ -286,8 +269,29 @@ function handleChatEvent(
             },
           ],
         }
-      },
-    )
+      }
+
+      if (previous.messages.some((message) => message.id === chatMessage.id)) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        messages: [
+          ...previous.messages,
+          {
+            id: chatMessage.id,
+            order_id: orderId,
+            thread_id: previous.thread_id,
+            chat_type: previous.chat_type,
+            sender_user_id: chatMessage.senderUserId,
+            sender_role: chatMessage.senderRole,
+            body: chatMessage.body,
+            created_at: chatMessage.createdAt,
+          },
+        ],
+      }
+    })
   }
 
   if (chatMessage && isIncomingDriverMessage(chatMessage, currentUserId)) {
@@ -315,13 +319,18 @@ function handleChatEvent(
 
 function showChatToast(
   orderId: string,
-  notification: Parameters<ReturnType<typeof useNotificationStore.getState>['addChatNotification']>[0],
+  notification: Parameters<
+    ReturnType<typeof useNotificationStore.getState>['addChatNotification']
+  >[0],
 ) {
   toast.custom(
     (toastInstance) =>
       createElement(
         'div',
-        { className: 'w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg' },
+        {
+          className:
+            'w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg',
+        },
         createElement(
           'div',
           { className: 'text-sm font-bold text-slate-950' },
@@ -337,14 +346,19 @@ function showChatToast(
           { className: 'mt-1 text-xs text-slate-500' },
           notification.orderSummary ?? 'Информация о заказе обновляется',
         ),
-        createElement('p', { className: 'mt-2 line-clamp-3 text-sm text-slate-700' }, notification.body),
+        createElement(
+          'p',
+          { className: 'mt-2 line-clamp-3 text-sm text-slate-700' },
+          notification.body,
+        ),
         createElement(
           'div',
           { className: 'mt-3 flex items-center justify-between' },
           createElement(
             'a',
             {
-              className: 'text-sm font-semibold text-amber-700 hover:text-amber-800',
+              className:
+                'text-sm font-semibold text-amber-700 hover:text-amber-800',
               href: `/taxi-park/orders/${orderId}#driver-chat`,
               onClick: () => toast.dismiss(toastInstance.id),
             },
@@ -383,12 +397,17 @@ function resolveEventPayload(event: WebSocketEvent) {
   return payloadMessage ?? payloadData ?? payload ?? event
 }
 
-function normalizeDriverLocationEvent(payload: unknown): DriverLocationSnapshot | null {
+function normalizeDriverLocationEvent(
+  payload: unknown,
+): DriverLocationSnapshot | null {
   if (!payload || typeof payload !== 'object') return null
 
   const data = unwrapPayload(payload)
   const locationData = data.location as Record<string, unknown> | undefined
-  const driverId = stringValue(data.driver_id) ?? stringValue(data.driverId) ?? stringValue(data.id)
+  const driverId =
+    stringValue(data.driver_id) ??
+    stringValue(data.driverId) ??
+    stringValue(data.id)
   const latitude =
     numberValue(data.latitude) ??
     numberValue(data.lat) ??
@@ -402,7 +421,8 @@ function normalizeDriverLocationEvent(payload: unknown): DriverLocationSnapshot 
     numberValue(locationData?.lng) ??
     numberValue(locationData?.lon)
 
-  if (!driverId || latitude === undefined || longitude === undefined) return null
+  if (!driverId || latitude === undefined || longitude === undefined)
+    return null
 
   return {
     driver_id: driverId,
@@ -475,9 +495,18 @@ function normalizeDriverStatusEvent(payload: unknown, eventName?: string) {
 
   return {
     driver_id: driverId,
-    user_id: stringValue(data.user_id) ?? stringValue(payloadData?.user_id) ?? stringValue(driver?.user_id),
-    name: stringValue(data.name) ?? stringValue(payloadData?.name) ?? stringValue(driver?.name),
-    phone: stringValue(data.phone) ?? stringValue(payloadData?.phone) ?? stringValue(driver?.phone),
+    user_id:
+      stringValue(data.user_id) ??
+      stringValue(payloadData?.user_id) ??
+      stringValue(driver?.user_id),
+    name:
+      stringValue(data.name) ??
+      stringValue(payloadData?.name) ??
+      stringValue(driver?.name),
+    phone:
+      stringValue(data.phone) ??
+      stringValue(payloadData?.phone) ??
+      stringValue(driver?.phone),
     status,
     updated_at:
       stringValue(data.recorded_at) ??
@@ -494,7 +523,8 @@ function normalizeChatMessageEvent(payload: unknown) {
   if (!payload || typeof payload !== 'object') return null
 
   const data = unwrapPayload(payload)
-  const message = getObject(data.message) ?? getObject(data.chat_message) ?? data
+  const message =
+    getObject(data.message) ?? getObject(data.chat_message) ?? data
   const orderId = getOrderId(data) ?? getOrderId(message)
   const body =
     stringValue(message.body) ??
@@ -540,7 +570,8 @@ function isIncomingDriverMessage(
   message: NonNullable<ReturnType<typeof normalizeChatMessageEvent>>,
   currentUserId?: string,
 ) {
-  if (message.senderUserId && message.senderUserId === currentUserId) return false
+  if (message.senderUserId && message.senderUserId === currentUserId)
+    return false
   if (!message.senderRole) return true
 
   return message.senderRole === 'driver'
@@ -570,21 +601,21 @@ function hasDriverStatusPayload(payload: unknown) {
   const driver = getObject(data.driver)
   const hasDriverIdentity = Boolean(
     stringValue(data.driver_id) ??
-      stringValue(data.driverId) ??
-      stringValue(data.user_id) ??
-      stringValue(driver?.id) ??
-      stringValue(driver?.driver_id) ??
-      stringValue(driver?.user_id),
+    stringValue(data.driverId) ??
+    stringValue(data.user_id) ??
+    stringValue(driver?.id) ??
+    stringValue(driver?.driver_id) ??
+    stringValue(driver?.user_id),
   )
   const hasStatusValue = Boolean(
     stringValue(data.status) ??
-      stringValue(data.new_status) ??
-      stringValue(data.driver_status) ??
-      stringValue(driver?.status) ??
-      booleanStatus(data.is_online) ??
-      booleanStatus(data.online) ??
-      booleanStatus(driver?.is_online) ??
-      booleanStatus(driver?.online),
+    stringValue(data.new_status) ??
+    stringValue(data.driver_status) ??
+    stringValue(driver?.status) ??
+    booleanStatus(data.is_online) ??
+    booleanStatus(data.online) ??
+    booleanStatus(driver?.is_online) ??
+    booleanStatus(driver?.online),
   )
 
   return hasDriverIdentity && hasStatusValue
@@ -600,7 +631,8 @@ function applyDriverStatusToLocationCache(
     return (
       value.driver_id === statusUpdate.driver_id ||
       value.user_id === statusUpdate.user_id ||
-      (statusUpdate.user_id !== undefined && value.driver_id === statusUpdate.user_id)
+      (statusUpdate.user_id !== undefined &&
+        value.driver_id === statusUpdate.user_id)
     )
   })
   const base =
@@ -614,7 +646,8 @@ function applyDriverStatusToLocationCache(
       key === statusUpdate.user_id ||
       value.driver_id === statusUpdate.driver_id ||
       value.user_id === statusUpdate.user_id ||
-      (statusUpdate.user_id !== undefined && value.driver_id === statusUpdate.user_id)
+      (statusUpdate.user_id !== undefined &&
+        value.driver_id === statusUpdate.user_id)
 
     next[key] = shouldUpdate ? mergeDriverStatus(value, statusUpdate) : value
   }
@@ -714,7 +747,10 @@ function getEventName(event: WebSocketEvent) {
     stringValue(nestedData?.event_type) ??
     stringValue(nestedData?.eventType)
 
-  if (nestedEventName && (topLevelType === 'notification' || topLevelEvent === 'notification')) {
+  if (
+    nestedEventName &&
+    (topLevelType === 'notification' || topLevelEvent === 'notification')
+  ) {
     return nestedEventName
   }
 
@@ -738,9 +774,15 @@ function getOrderId(payload: unknown) {
     stringValue(data.orderId) ??
     stringValue(data.id) ??
     stringValue((data.order as Record<string, unknown> | undefined)?.id) ??
-    stringValue((data.order as Record<string, unknown> | undefined)?.order_id) ??
-    stringValue((data.message as Record<string, unknown> | undefined)?.order_id) ??
-    stringValue((data.message as Record<string, unknown> | undefined)?.orderId) ??
+    stringValue(
+      (data.order as Record<string, unknown> | undefined)?.order_id,
+    ) ??
+    stringValue(
+      (data.message as Record<string, unknown> | undefined)?.order_id,
+    ) ??
+    stringValue(
+      (data.message as Record<string, unknown> | undefined)?.orderId,
+    ) ??
     stringValue((data.chat as Record<string, unknown> | undefined)?.order_id) ??
     stringValue((data.chat as Record<string, unknown> | undefined)?.orderId) ??
     stringValue((data.data as Record<string, unknown> | undefined)?.order_id) ??
@@ -749,13 +791,18 @@ function getOrderId(payload: unknown) {
 }
 
 function findCachedOrder(queryClient: QueryClient, orderId: string) {
-  const directOrder = queryClient.getQueryData<TaxiParkOrder>(['taxi-park-order', orderId])
+  const directOrder = queryClient.getQueryData<TaxiParkOrder>([
+    'taxi-park-order',
+    orderId,
+  ])
   if (directOrder) return directOrder
 
   for (const [, orders] of queryClient.getQueriesData<TaxiParkOrder[]>({
     queryKey: ['taxi-park-orders'],
   })) {
-    const order = orders?.find((item) => item.id === orderId || item.order_id === orderId)
+    const order = orders?.find(
+      (item) => item.id === orderId || item.order_id === orderId,
+    )
     if (order) return order
   }
 
@@ -771,7 +818,9 @@ function unwrapPayload(payload: unknown): Record<string, unknown> {
 }
 
 function getObject(value: unknown) {
-  return value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined
+  return value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : undefined
 }
 
 function stringValue(value: unknown) {
