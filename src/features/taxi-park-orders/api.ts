@@ -1,5 +1,5 @@
 import { http } from '../../shared/api/http'
-import type { ApiResponse, MoneyCentsResponse } from '../../shared/api/types'
+import type { ApiResponse, MoneyCentsResponse, MoneyResponse } from '../../shared/api/types'
 
 export type CoordinatesPayload = {
   latitude: number
@@ -28,6 +28,16 @@ export type TaxiParkOrder = {
   price?: MoneyCentsResponse
   created_at: string
   completed_at?: string | null
+}
+
+type TaxiParkOrderResponse = Omit<
+  TaxiParkOrder,
+  'gross_amount' | 'total_price' | 'price'
+> & {
+  gross_amount?: MoneyCentsResponse | MoneyResponse
+  total_price?: MoneyCentsResponse | MoneyResponse
+  price?: MoneyCentsResponse | MoneyResponse
+  final_price?: MoneyCentsResponse | MoneyResponse
 }
 
 export type TaxiParkScheduledOrderStatus =
@@ -146,7 +156,7 @@ export type ChatMessagesResponse = {
 }
 
 export async function getTaxiParkOrders(params?: { status?: string; limit?: number }) {
-  const response = await http.get<ApiResponse<{ orders: TaxiParkOrder[] }>>('/taxi-park/orders', {
+  const response = await http.get<ApiResponse<{ orders: TaxiParkOrderResponse[] }>>('/taxi-park/orders', {
     params: params?.limit ? { limit: params.limit } : undefined,
   })
   const orders = response.data.data.orders.map(normalizeOrder)
@@ -154,7 +164,7 @@ export async function getTaxiParkOrders(params?: { status?: string; limit?: numb
 }
 
 export async function getTaxiParkOrder(orderId: string) {
-  const response = await http.get<ApiResponse<TaxiParkOrder>>(`/taxi-park/orders/${orderId}`)
+  const response = await http.get<ApiResponse<TaxiParkOrderResponse>>(`/taxi-park/orders/${orderId}`)
   return normalizeOrder(response.data.data)
 }
 
@@ -261,11 +271,37 @@ export async function sendTaxiParkDriverChatMessage(orderId: string, body: strin
   return response.data.data
 }
 
-function normalizeOrder(order: TaxiParkOrder) {
+export function normalizeTaxiParkOrder(order: TaxiParkOrderResponse): TaxiParkOrder {
+  const grossAmount = normalizeMoneyCents(order.gross_amount)
+  const totalPrice = normalizeMoneyCents(order.total_price)
+  const price =
+    grossAmount ??
+    totalPrice ??
+    normalizeMoneyCents(order.final_price) ??
+    normalizeMoneyCents(order.price)
+
   return {
     ...order,
     id: order.id ?? order.order_id,
+    gross_amount: grossAmount,
+    total_price: totalPrice,
+    price,
   }
+}
+
+function normalizeOrder(order: TaxiParkOrderResponse) {
+  return normalizeTaxiParkOrder(order)
+}
+
+function normalizeMoneyCents(money?: MoneyCentsResponse | MoneyResponse): MoneyCentsResponse | undefined {
+  if (!money) return undefined
+  if ('amount_cents' in money && typeof money.amount_cents === 'number') {
+    return { amount_cents: money.amount_cents, currency: money.currency }
+  }
+  if ('amount' in money && typeof money.amount === 'number') {
+    return { amount_cents: Math.round(money.amount * 100), currency: money.currency }
+  }
+  return undefined
 }
 
 function normalizeScheduledOrder(order: TaxiParkScheduledOrder) {

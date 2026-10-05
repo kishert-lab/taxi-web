@@ -34,6 +34,7 @@ export function statusVariant(status?: string): BadgeVariant {
     status === 'pending' ||
     status === 'pending_verification' ||
     status === 'draft' ||
+    status === 'searching' ||
     status === 'no_drivers_found' ||
     status === 'scheduled_new' ||
     status === 'scheduled_waiting_activation'
@@ -45,6 +46,7 @@ export function statusVariant(status?: string): BadgeVariant {
 }
 
 const statusLabels: Record<string, string> = {
+  searching: 'Поиск водителя',
   created: 'Создан',
   offered: 'Предложен',
   assigned: 'Водитель назначен',

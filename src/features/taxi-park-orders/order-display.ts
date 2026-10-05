@@ -1,5 +1,6 @@
 import { formatDate } from '../../shared/utils/format-date'
 import { formatMoneyCents } from '../../shared/utils/format-money'
+import { statusLabel } from '../../shared/ui/badge-utils'
 import type { TaxiParkOrder, TaxiParkScheduledOrder } from './api'
 
 type OrderLike = Partial<TaxiParkOrder> | Partial<TaxiParkScheduledOrder> | null | undefined
@@ -22,7 +23,7 @@ export function getOrderShortInfo(order?: Partial<TaxiParkOrder> | null) {
 
   const parts = [
     cleanText(order.passenger_phone) ? `пассажир ${cleanText(order.passenger_phone)}` : undefined,
-    order.status ? `статус: ${order.status}` : undefined,
+    order.status ? `статус: ${statusLabel(order.status)}` : undefined,
     order.created_at ? `создан ${formatDate(order.created_at)}` : undefined,
     formatMoneyCents(order.gross_amount ?? order.total_price ?? order.price),
   ].filter(Boolean)

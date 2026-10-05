@@ -103,12 +103,9 @@ export function TaxiParkFleetMap({ drivers }: { drivers: TaxiParkDriver[] }) {
       <Card className="overflow-hidden p-0">
         <div className="border-b border-slate-200 px-4 py-3">
           <h2 className="text-lg font-bold text-slate-950">Карта водителей онлайн</h2>
-          <p className="text-sm text-slate-500">
-            Стартовое состояние берется из snapshot, дальше обновляется через WebSocket.
-          </p>
           {snapshot.isError ? (
             <p className="mt-1 text-xs font-medium text-red-600">
-              Не удалось загрузить snapshot локаций
+              Не удалось загрузить местоположение водителей
             </p>
           ) : null}
         </div>
