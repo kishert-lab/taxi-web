@@ -99,7 +99,7 @@ export function TaxiParkFleetMap({ drivers }: { drivers: TaxiParkDriver[] }) {
   const parkCenter = settings.data?.city?.center
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
       <Card className="overflow-hidden p-0">
         <div className="border-b border-slate-200 px-4 py-3">
           <h2 className="text-lg font-bold text-slate-950">Карта водителей онлайн</h2>
