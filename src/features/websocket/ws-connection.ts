@@ -9,11 +9,14 @@ export type SocketListener = {
 }
 
 type ConnectionOptions = {
-  getAccessToken: (session: SocketSession) => Promise<string | null>
+  getAccessToken: (
+    session: SocketSession,
+    options?: { forceRefresh?: boolean },
+  ) => Promise<string | null>
   createSocket: (token: string, endpoint: string) => WebSocket
 }
 
-const reconnectDelaysMs = [1000, 2000, 5000, 10_000, 30_000, 60_000]
+const reconnectDelaysMs = [1000, 2000, 5000, 10_000, 30_000]
 const maxReconnectAttempts = 8
 const heartbeatIntervalMs = 25_000
 
@@ -29,6 +32,8 @@ export class WebSocketConnection {
   private connecting = false
   private intentionalClose = false
   private paused = false
+  private refreshBeforeReconnect = false
+  private refreshedFailedHandshake = false
   private readonly options: ConnectionOptions
 
   constructor(options: ConnectionOptions) {
@@ -43,6 +48,8 @@ export class WebSocketConnection {
       return
     this.stop(session ? 'session changed' : 'logout')
     this.session = session
+    this.refreshBeforeReconnect = false
+    this.refreshedFailedHandshake = false
     this.publish({ subscriptions: this.subscriptionNames() })
     void this.connect()
   }
@@ -124,13 +131,19 @@ export class WebSocketConnection {
     )
 
     try {
-      const token = await this.options.getAccessToken(session)
+      const token = await this.options.getAccessToken(session, {
+        forceRefresh: this.refreshBeforeReconnect,
+      })
+      this.refreshBeforeReconnect = false
       if (generation !== this.generation || !token || this.paused) return
       const socket = this.options.createSocket(token, session.endpoint)
       this.socket = socket
       this.intentionalClose = false
+      let opened = false
       socket.onopen = () => {
         if (this.socket !== socket || this.intentionalClose) return
+        opened = true
+        this.refreshedFailedHandshake = false
         this.clearReconnectTimer()
         this.reconnectAttempts = 0
         this.publish({
@@ -170,6 +183,11 @@ export class WebSocketConnection {
         } else if (event.code === 1000) {
           this.publish({ status: 'disconnected', lastError: details })
         } else {
+          if (!opened && !this.refreshedFailedHandshake) {
+            this.refreshBeforeReconnect = true
+            this.refreshedFailedHandshake = true
+            this.log('HANDSHAKE failed before open; refreshing access token once')
+          }
           this.publish({ status: 'error', lastError: details })
           this.scheduleReconnect()
         }

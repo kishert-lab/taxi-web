@@ -53,6 +53,9 @@ export function useWebSocket() {
               queryKey: ['taxi-park-orders'],
             })
             void queryClient.invalidateQueries({
+              queryKey: ['taxi-park-drivers'],
+            })
+            void queryClient.invalidateQueries({
               queryKey: ['taxi-park-driver-locations-snapshot'],
             })
           }
@@ -70,6 +73,15 @@ export function useWebSocket() {
               void http.get('/taxi-park/orders')
               void queryClient.invalidateQueries({
                 queryKey: ['taxi-park-orders'],
+              })
+              void queryClient.invalidateQueries({
+                queryKey: ['taxi-park-drivers'],
+              })
+              void queryClient.invalidateQueries({
+                queryKey: ['taxi-park-driver-locations-snapshot'],
+              })
+              void queryClient.invalidateQueries({
+                queryKey: ['taxi-park-balance'],
               })
             }
             if (role === 'driver') {

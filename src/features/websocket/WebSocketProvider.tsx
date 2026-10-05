@@ -7,10 +7,13 @@ import { createWebSocket, getWebSocketEndpoint } from './ws-client'
 import { WebSocketConnection, type SocketSession } from './ws-connection'
 import { WebSocketContext } from './ws-context'
 
-async function getConnectionToken(session: SocketSession) {
+async function getConnectionToken(
+  session: SocketSession,
+  options?: { forceRefresh?: boolean },
+) {
   const state = useAuthStore.getState()
   if (state.user?.id !== session.userId || !state.accessToken) return null
-  if (isAccessTokenExpired(state.accessToken)) {
+  if (options?.forceRefresh || isAccessTokenExpired(state.accessToken)) {
     try {
       await refreshSessionAccessToken()
     } catch {

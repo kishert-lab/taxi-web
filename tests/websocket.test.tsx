@@ -188,6 +188,28 @@ describe('application WebSocket lifecycle', () => {
     expect(vi.getTimerCount()).toBe(1)
   })
 
+  it('refreshes an access token once after a failed WebSocket handshake', async () => {
+    const nextToken = token('after-handshake-refresh')
+    vi.mocked(refreshSessionAccessToken).mockImplementationOnce(async () => {
+      useAuthStore.setState({ accessToken: nextToken })
+      return nextToken
+    })
+    render(<Consumer />, { wrapper: Wrapper })
+    await flush()
+
+    act(() => FakeWebSocket.instances[0].finishClose(1006))
+    await advance(1000)
+
+    expect(refreshSessionAccessToken).toHaveBeenCalledTimes(1)
+    expect(FakeWebSocket.instances[1].url).toBe(
+      `${endpoint}?token=${encodeURIComponent(nextToken)}`,
+    )
+
+    act(() => FakeWebSocket.instances[1].finishClose(1006))
+    await advance(2000)
+    expect(refreshSessionAccessToken).toHaveBeenCalledTimes(1)
+  })
+
   it('waits for the old close event on user and host changes', async () => {
     const view = render(<Consumer />, { wrapper: Wrapper })
     await flush()
@@ -366,7 +388,7 @@ describe('connection service', () => {
     connection.setSession({ userId: 'user-1', endpoint })
     connection.subscribe({ onMessage: vi.fn() })
     await flush()
-    for (const delay of [1000, 2000, 5000, 10_000, 30_000, 60_000, 60_000]) {
+    for (const delay of [1000, 2000, 5000, 10_000, 30_000, 30_000, 30_000]) {
       const count = FakeWebSocket.instances.length
       FakeWebSocket.instances[count - 1].finishClose()
       await advance(delay - 1)
