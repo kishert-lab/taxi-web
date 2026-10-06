@@ -1,6 +1,7 @@
 import { StrictMode, type ReactNode } from 'react'
 import { act, cleanup, render } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { appConfig } from '../src/app/config'
@@ -20,6 +21,15 @@ vi.mock('../src/shared/api/http', () => ({
   http: { get: vi.fn().mockResolvedValue({ data: {} }) },
   refreshSessionAccessToken: vi.fn(),
 }))
+
+vi.mock('react-hot-toast', () => {
+  const toast = Object.assign(vi.fn(), {
+    success: vi.fn(),
+    custom: vi.fn(),
+    dismiss: vi.fn(),
+  })
+  return { default: toast }
+})
 
 class FakeWebSocket {
   static CONNECTING = 0
@@ -50,8 +60,10 @@ class FakeWebSocket {
     this.readyState = FakeWebSocket.CLOSED
     this.onclose?.({ code })
   }
-  message(type: string) {
-    this.onmessage?.({ data: JSON.stringify({ type }) })
+  message(type: string, payload?: unknown) {
+    this.onmessage?.({
+      data: JSON.stringify(payload === undefined ? { type } : { type, payload }),
+    })
   }
 }
 
@@ -243,6 +255,23 @@ describe('application WebSocket lifecycle', () => {
     act(() => FakeWebSocket.instances[0].message('sync.required'))
     expect(http.get).toHaveBeenCalledWith('/driver/orders/current')
     expect(FakeWebSocket.instances).toHaveLength(1)
+  })
+
+  it('updates driver location without showing a line-status notification', async () => {
+    render(<Consumer />, { wrapper: Wrapper })
+    await flush()
+
+    act(() =>
+      FakeWebSocket.instances[0].message('driver.location_updated', {
+        driver_id: 'driver-1',
+        status: 'online',
+        latitude: 58.085281,
+        longitude: 56.404685,
+      }),
+    )
+
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast).not.toHaveBeenCalled()
   })
 
   it('clears a previous user reconnect timer when switching users', async () => {

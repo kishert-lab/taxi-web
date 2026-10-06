@@ -149,8 +149,9 @@ export function useWebSocket() {
           }
 
           if (
-            isDriverStatusEvent(eventName) ||
-            hasDriverStatusPayload(eventPayload)
+            !isDriverLocationEvent(eventName) &&
+            (isDriverStatusEvent(eventName) ||
+              hasDriverStatusPayload(eventPayload))
           ) {
             const statusUpdate = normalizeDriverStatusEvent(
               eventPayload,
@@ -603,6 +604,13 @@ function isDriverStatusEvent(eventName?: string) {
     eventName === 'driver.online' ||
     eventName === 'driver.offline' ||
     eventName === 'driver.paused'
+  )
+}
+
+function isDriverLocationEvent(eventName?: string) {
+  return (
+    eventName === 'driver.location.updated' ||
+    eventName === 'driver.location_updated'
   )
 }
 
