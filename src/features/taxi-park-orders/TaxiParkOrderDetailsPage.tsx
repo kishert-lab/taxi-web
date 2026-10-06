@@ -12,11 +12,10 @@ import { Badge } from '../../shared/ui/Badge'
 import { statusLabel, statusVariant } from '../../shared/ui/badge-utils'
 import { Button } from '../../shared/ui/Button'
 import { Card } from '../../shared/ui/Card'
-import { Input } from '../../shared/ui/Input'
 import { Skeleton } from '../../shared/ui/Loader'
 import { Textarea } from '../../shared/ui/Textarea'
 import { formatDate } from '../../shared/utils/format-date'
-import { formatMoneyCents, rublesToCents } from '../../shared/utils/format-money'
+import { formatMoneyCents } from '../../shared/utils/format-money'
 import { AddressSearchInput } from '../geocoder/AddressSearchInput'
 import { getTaxiParkSettings } from '../taxi-park-settings/api'
 import {
@@ -26,7 +25,12 @@ import {
   type TaxiParkOrder,
   updateTaxiParkOrder,
 } from './api'
-import { getDriverDisplayName, getOrderShortInfo, getReadableOrderTitle } from './order-display'
+import {
+  getDriverDisplayName,
+  getOrderShortInfo,
+  getPassengerDisplayName,
+  getReadableOrderTitle,
+} from './order-display'
 import { TaxiParkOrderDriverChat } from './TaxiParkOrderDriverChat'
 import { TaxiParkOrderMap } from './TaxiParkOrderMap'
 
@@ -41,15 +45,9 @@ const cancelSchema = z.object({
   reason: z.string().min(3, 'Укажите причину отмены'),
 })
 
-const completeSchema = z.object({
-  final_price_rubles: z.coerce.number().min(0, 'Цена не может быть отрицательной'),
-})
-
 type EditValues = z.input<typeof editSchema>
 type EditSubmitValues = z.output<typeof editSchema>
 type CancelValues = z.infer<typeof cancelSchema>
-type CompleteValues = z.input<typeof completeSchema>
-type CompleteSubmitValues = z.output<typeof completeSchema>
 
 export function TaxiParkOrderDetailsPage() {
   const { orderId } = useParams()
@@ -72,9 +70,6 @@ export function TaxiParkOrderDetailsPage() {
     resolver: zodResolver(cancelSchema),
     defaultValues: { reason: 'Отменено диспетчером' },
   })
-  const completeForm = useForm<CompleteValues, unknown, CompleteSubmitValues>({
-    resolver: zodResolver(completeSchema),
-  })
   const destinationAddress = useWatch({
     control: editForm.control,
     name: 'destination_address',
@@ -89,10 +84,7 @@ export function TaxiParkOrderDetailsPage() {
       destination_longitude: destination?.longitude ?? '',
       comment: order.data.comment ?? '',
     })
-    completeForm.reset({
-      final_price_rubles: getOrderPriceCents(order.data) / 100,
-    })
-  }, [completeForm, editForm, order.data])
+  }, [editForm, order.data])
 
   const refreshOrder = (data: TaxiParkOrder) => {
     queryClient.setQueryData(['taxi-park-order', data.id], data)
@@ -124,11 +116,7 @@ export function TaxiParkOrderDetailsPage() {
     onError: (error) => toast.error(getApiErrorMessage(error)),
   })
   const completeMutation = useMutation({
-    mutationFn: (values: CompleteSubmitValues) =>
-      completeTaxiParkOrder(orderId!, {
-        final_price: rublesToCents(values.final_price_rubles),
-        currency: 'RUB',
-      }),
+    mutationFn: () => completeTaxiParkOrder(orderId!, {}),
     onSuccess: (data) => {
       toast.success('Заказ закрыт')
       refreshOrder(data)
@@ -168,10 +156,12 @@ export function TaxiParkOrderDetailsPage() {
             <h2 className="text-lg font-bold text-slate-950">Информация</h2>
             <Info label="Статус" value={statusLabel(data.status)} />
             <Info label="Водитель" value={getDriverDisplayName(data, undefined)} />
-            <Info label="Телефон пассажира" value={data.passenger_phone ?? '-'} />
+            <Info label="Телефон водителя" value={<PhoneLink phone={data.driver_phone} />} />
+            <Info label="Пассажир" value={getPassengerDisplayName(data)} />
+            <Info label="Телефон пассажира" value={<PhoneLink phone={data.passenger_phone} />} />
             <Info label="Подача" value={data.pickup_address ?? '-'} />
             <Info label="Куда" value={data.destination_address ?? '-'} />
-            <Info label="Цена" value={formatMoneyCents(data.gross_amount ?? data.total_price ?? data.price)} />
+            <Info label="Цена" value={formatMoneyCents(data.price ?? data.gross_amount ?? data.total_price)} />
             <Info label="Создан" value={formatDate(data.created_at)} />
             <Info label="Завершен" value={formatDate(data.completed_at)} />
           </Card>
@@ -228,13 +218,12 @@ export function TaxiParkOrderDetailsPage() {
               </Button>
             </form>
 
-            <form className="space-y-3" onSubmit={completeForm.handleSubmit((values) => completeMutation.mutate(values))}>
+            <div className="space-y-3">
               <h2 className="text-lg font-bold text-slate-950">Закрытие</h2>
-              <Input {...completeForm.register('final_price_rubles')} type="number" min={0} step="0.01" />
-              <Button type="submit" disabled={completeMutation.isPending}>
+              <Button type="button" disabled={completeMutation.isPending} onClick={() => completeMutation.mutate()}>
                 Закрыть заказ
               </Button>
-            </form>
+            </div>
           </Card>
         </div>
       </div>
@@ -251,11 +240,8 @@ function Info({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-function getOrderPriceCents(order: TaxiParkOrder) {
-  return (
-    order.gross_amount?.amount_cents ??
-    order.total_price?.amount_cents ??
-    order.price?.amount_cents ??
-    0
-  )
+function PhoneLink({ phone }: { phone?: string }) {
+  if (!phone) return '-'
+
+  return <a className="text-amber-700 hover:underline" href={`tel:${phone}`}>{phone}</a>
 }

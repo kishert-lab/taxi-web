@@ -25,7 +25,7 @@ export function getOrderShortInfo(order?: Partial<TaxiParkOrder> | null) {
     cleanText(order.passenger_phone) ? `пассажир ${cleanText(order.passenger_phone)}` : undefined,
     order.status ? `статус: ${statusLabel(order.status)}` : undefined,
     order.created_at ? `создан ${formatDate(order.created_at)}` : undefined,
-    formatMoneyCents(order.gross_amount ?? order.total_price ?? order.price),
+    formatMoneyCents(order.price ?? order.gross_amount ?? order.total_price),
   ].filter(Boolean)
 
   return parts.join(' · ') || 'Информация о заказе обновляется'
@@ -43,13 +43,22 @@ export function getDriverDisplayName(
   return (
     cleanText(driverName) ??
     cleanText(fallbackName) ??
-    (order?.driver_id
-      ? `Водитель ${order.driver_id.slice(0, 8)}`
-      : undefined) ??
+    (order?.driver_id ? `Водитель ${order.driver_id}` : undefined) ??
     (preassignedDriverId
       ? `Предназначен ${preassignedDriverId.slice(0, 8)}`
       : undefined) ??
     'Водитель не назначен'
+  )
+}
+
+export function getPassengerDisplayName(order?: Partial<TaxiParkOrder> | null) {
+  if (!order) return 'Нет данных'
+
+  return (
+    cleanText(order.passenger_name) ??
+    cleanText(order.passenger?.name) ??
+    (order.passenger_id ? `Пассажир ${order.passenger_id}` : undefined) ??
+    'Нет данных'
   )
 }
 

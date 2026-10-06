@@ -10,7 +10,13 @@ export type TaxiParkPaymentType = 'cash' | 'card' | 'corporate'
 
 export type TaxiParkOrderDriver = {
   id: string
-  name: string
+  name?: string
+  phone?: string
+}
+
+export type TaxiParkOrderPassenger = {
+  id: string
+  name?: string
   phone?: string
 }
 
@@ -22,7 +28,10 @@ export type TaxiParkOrder = {
   driver_name?: string
   driver_phone?: string
   driver?: TaxiParkOrderDriver
+  passenger_id?: string
+  passenger_name?: string
   passenger_phone?: string
+  passenger?: TaxiParkOrderPassenger
   pickup_address?: string
   pickup_location?: CoordinatesPayload
   pickup_point?: CoordinatesPayload
@@ -46,6 +55,7 @@ type TaxiParkOrderResponse = Omit<
   total_price?: MoneyCentsResponse | MoneyResponse
   price?: MoneyCentsResponse | MoneyResponse
   final_price?: MoneyCentsResponse | MoneyResponse
+  estimated_price?: MoneyCentsResponse | MoneyResponse
 }
 
 export type TaxiParkScheduledOrderStatus =
@@ -142,8 +152,7 @@ export type TaxiParkAssignScheduledOrderDriverPayload = {
 }
 
 export type TaxiParkCompleteOrderPayload = {
-  final_price: number
-  currency: string
+  // The server calculates the completion amount from the price fixed at order creation.
 }
 
 export type ChatMessage = {
@@ -282,10 +291,13 @@ export async function sendTaxiParkDriverChatMessage(orderId: string, body: strin
 export function normalizeTaxiParkOrder(order: TaxiParkOrderResponse): TaxiParkOrder {
   const grossAmount = normalizeMoneyCents(order.gross_amount)
   const totalPrice = normalizeMoneyCents(order.total_price)
+  const finalPrice = normalizeMoneyCents(order.final_price)
+  const estimatedPrice = normalizeMoneyCents(order.estimated_price)
   const price =
+    finalPrice ??
+    estimatedPrice ??
     grossAmount ??
     totalPrice ??
-    normalizeMoneyCents(order.final_price) ??
     normalizeMoneyCents(order.price)
 
   return {
@@ -294,6 +306,9 @@ export function normalizeTaxiParkOrder(order: TaxiParkOrderResponse): TaxiParkOr
     driver_id: order.driver_id ?? order.driver?.id,
     driver_name: order.driver_name ?? order.driver?.name,
     driver_phone: order.driver_phone ?? order.driver?.phone,
+    passenger_id: order.passenger_id ?? order.passenger?.id,
+    passenger_name: order.passenger_name ?? order.passenger?.name,
+    passenger_phone: order.passenger_phone ?? order.passenger?.phone,
     gross_amount: grossAmount,
     total_price: totalPrice,
     price,

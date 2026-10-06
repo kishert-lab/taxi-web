@@ -15,7 +15,7 @@ import { Input } from '../../shared/ui/Input'
 import { Modal } from '../../shared/ui/Modal'
 import { Textarea } from '../../shared/ui/Textarea'
 import { formatDate } from '../../shared/utils/format-date'
-import { formatMoneyCents, rublesToCents } from '../../shared/utils/format-money'
+import { formatMoneyCents } from '../../shared/utils/format-money'
 import {
   cancelTaxiParkOrder,
   completeTaxiParkOrder,
@@ -23,6 +23,7 @@ import {
   type TaxiParkOrder,
   updateTaxiParkOrder,
 } from './api'
+import { getDriverDisplayName, getPassengerDisplayName } from './order-display'
 import { TaxiParkOrderDriverChat } from './TaxiParkOrderDriverChat'
 
 const editSchema = z.object({
@@ -36,15 +37,9 @@ const cancelSchema = z.object({
   reason: z.string().min(3, 'Укажите причину отмены'),
 })
 
-const completeSchema = z.object({
-  final_price_rubles: z.coerce.number().min(0, 'Цена не может быть отрицательной'),
-})
-
 type EditValues = z.input<typeof editSchema>
 type EditSubmitValues = z.output<typeof editSchema>
 type CancelValues = z.infer<typeof cancelSchema>
-type CompleteValues = z.input<typeof completeSchema>
-type CompleteSubmitValues = z.output<typeof completeSchema>
 
 export function TaxiParkOrderDetailsModal({
   orderId,
@@ -70,9 +65,6 @@ export function TaxiParkOrderDetailsModal({
     resolver: zodResolver(cancelSchema),
     defaultValues: { reason: 'Отменено диспетчером' },
   })
-  const completeForm = useForm<CompleteValues, unknown, CompleteSubmitValues>({
-    resolver: zodResolver(completeSchema),
-  })
 
   useEffect(() => {
     if (!order.data) return
@@ -83,10 +75,7 @@ export function TaxiParkOrderDetailsModal({
       destination_longitude: destination?.longitude ?? '',
       comment: order.data.comment ?? '',
     })
-    completeForm.reset({
-      final_price_rubles: getOrderPriceCents(order.data) / 100,
-    })
-  }, [completeForm, editForm, order.data])
+  }, [editForm, order.data])
 
   const refreshOrder = (data: TaxiParkOrder) => {
     queryClient.setQueryData(['taxi-park-order', data.id], data)
@@ -118,11 +107,7 @@ export function TaxiParkOrderDetailsModal({
     onError: (error) => toast.error(getApiErrorMessage(error)),
   })
   const completeMutation = useMutation({
-    mutationFn: (values: CompleteSubmitValues) =>
-      completeTaxiParkOrder(orderId!, {
-        final_price: rublesToCents(values.final_price_rubles),
-        currency: 'RUB',
-      }),
+    mutationFn: () => completeTaxiParkOrder(orderId!, {}),
     onSuccess: (data) => {
       toast.success('Заказ закрыт')
       refreshOrder(data)
@@ -140,9 +125,11 @@ export function TaxiParkOrderDetailsModal({
         <div className="space-y-5">
           <div className="grid gap-3 md:grid-cols-2">
             <Info label="Статус" value={<Badge variant={statusVariant(data.status)}>{statusLabel(data.status)}</Badge>} />
-            <Info label="Водитель" value={data.driver_name ?? data.driver_id ?? '-'} />
-            <Info label="Телефон пассажира" value={data.passenger_phone ?? '-'} />
-            <Info label="Цена" value={formatMoneyCents(data.gross_amount ?? data.total_price ?? data.price)} />
+            <Info label="Водитель" value={getDriverDisplayName(data)} />
+            <Info label="Телефон водителя" value={<PhoneLink phone={data.driver_phone} />} />
+            <Info label="Пассажир" value={getPassengerDisplayName(data)} />
+            <Info label="Телефон пассажира" value={<PhoneLink phone={data.passenger_phone} />} />
+            <Info label="Цена" value={formatMoneyCents(data.price ?? data.gross_amount ?? data.total_price)} />
             <Info label="Создан" value={formatDate(data.created_at)} />
             <Info label="Завершен" value={formatDate(data.completed_at)} />
           </div>
@@ -169,13 +156,12 @@ export function TaxiParkOrderDetailsModal({
               </Button>
             </form>
 
-            <form className="space-y-3" onSubmit={completeForm.handleSubmit((values) => completeMutation.mutate(values))}>
+            <div className="space-y-3">
               <h3 className="text-sm font-bold uppercase text-slate-500">Закрытие</h3>
-              <Input {...completeForm.register('final_price_rubles')} type="number" min={0} step="0.01" />
-              <Button type="submit" disabled={completeMutation.isPending}>
+              <Button type="button" disabled={completeMutation.isPending} onClick={() => completeMutation.mutate()}>
                 Закрыть заказ
               </Button>
-            </form>
+            </div>
           </div>
 
           <TaxiParkOrderDriverChat orderId={data.id} />
@@ -194,11 +180,8 @@ function Info({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-function getOrderPriceCents(order: TaxiParkOrder) {
-  return (
-    order.gross_amount?.amount_cents ??
-    order.total_price?.amount_cents ??
-    order.price?.amount_cents ??
-    0
-  )
+function PhoneLink({ phone }: { phone?: string }) {
+  if (!phone) return '-'
+
+  return <a className="text-amber-700 hover:underline" href={`tel:${phone}`}>{phone}</a>
 }
