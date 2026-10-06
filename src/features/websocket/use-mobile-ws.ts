@@ -133,19 +133,6 @@ export function useWebSocket() {
                 }),
               )
             }
-
-            void queryClient.invalidateQueries({
-              queryKey: ['taxi-park-orders'],
-            })
-            void queryClient.invalidateQueries({
-              queryKey: ['taxi-park-order'],
-            })
-            void queryClient.invalidateQueries({
-              queryKey: ['taxi-park-drivers'],
-            })
-            void queryClient.invalidateQueries({
-              queryKey: ['taxi-park-driver-locations-snapshot'],
-            })
           }
 
           if (

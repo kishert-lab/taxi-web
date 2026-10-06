@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import L from 'leaflet'
 import { Car, Clock, MapPin } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, TileLayer } from 'react-leaflet'
 
 import { appConfig } from '../../app/config'
 import {
   loadYandexMaps,
   type YandexCoordinates,
+  type YandexGeoObject,
   type YandexMapInstance,
 } from '../../shared/maps/yandex-loader'
 import { Badge } from '../../shared/ui/Badge'
@@ -97,6 +98,13 @@ export function TaxiParkFleetMap({ drivers }: { drivers: TaxiParkDriver[] }) {
     [drivers, activeDrivers, driversWithLocation],
   )
   const parkCenter = settings.data?.city?.center
+  const mapCenter = useMemo<[number, number]>(
+    () =>
+      parkCenter
+        ? [parkCenter.latitude, parkCenter.longitude]
+        : defaultCenter,
+    [parkCenter?.latitude, parkCenter?.longitude],
+  )
 
   return (
     <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -113,9 +121,7 @@ export function TaxiParkFleetMap({ drivers }: { drivers: TaxiParkDriver[] }) {
           <div className="h-[460px]">
             <FleetMapCanvas
               drivers={driversWithLocation}
-              defaultCenter={
-                parkCenter ? [parkCenter.latitude, parkCenter.longitude] : defaultCenter
-              }
+              defaultCenter={mapCenter}
               selectedDriverId={selectedDriver?.driver_id}
               onSelect={setSelectedDriverId}
             />
@@ -149,6 +155,7 @@ function FleetMapCanvas({
   onSelect: (driverId: string) => void
 }) {
   const [useLeafletFallback, setUseLeafletFallback] = useState(!appConfig.yandexMapsApiKey)
+  const handleFallback = useCallback(() => setUseLeafletFallback(true), [])
 
   if (useLeafletFallback) {
     return (
@@ -167,7 +174,7 @@ function FleetMapCanvas({
       defaultCenter={defaultCenter}
       selectedDriverId={selectedDriverId}
       onSelect={onSelect}
-      onFallback={() => setUseLeafletFallback(true)}
+      onFallback={handleFallback}
     />
   )
 }
@@ -187,6 +194,8 @@ function YandexFleetMapCanvas({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<YandexMapInstance | null>(null)
+  const placemarksRef = useRef(new Map<string, { signature: string; object: YandexGeoObject }>())
+  const selectedDriverRef = useRef<string | undefined>(undefined)
   const [mapReady, setMapReady] = useState(false)
 
   useEffect(() => {
@@ -221,6 +230,8 @@ function YandexFleetMapCanvas({
       setMapReady(false)
       mapRef.current?.destroy()
       mapRef.current = null
+      placemarksRef.current.clear()
+      selectedDriverRef.current = undefined
     }
   }, [defaultCenter, onFallback])
 
@@ -233,9 +244,20 @@ function YandexFleetMapCanvas({
       const ymaps = await loadYandexMaps(appConfig.yandexMapsApiKey)
       if (isDisposed || !mapRef.current) return
 
-      mapRef.current.geoObjects.removeAll()
+      const nextDriverIds = new Set(drivers.map((driver) => driver.driver_id))
+      placemarksRef.current.forEach((placemark, driverId) => {
+        if (!nextDriverIds.has(driverId)) {
+          mapRef.current?.geoObjects.remove(placemark.object)
+          placemarksRef.current.delete(driverId)
+        }
+      })
 
       drivers.forEach((driver) => {
+        const signature = getPlacemarkSignature(driver)
+        const current = placemarksRef.current.get(driver.driver_id)
+        if (current?.signature === signature) return
+
+        if (current) mapRef.current?.geoObjects.remove(current.object)
         const placemark = new ymaps.Placemark(
           [driver.latitude, driver.longitude],
           {
@@ -253,10 +275,14 @@ function YandexFleetMapCanvas({
 
         placemark.events?.add('click', () => onSelect(driver.driver_id))
         mapRef.current?.geoObjects.add(placemark)
+        placemarksRef.current.set(driver.driver_id, { signature, object: placemark })
       })
 
-      focusFleetMap(mapRef.current, drivers, defaultCenter, selectedDriverId)
-      mapRef.current.container.fitToViewport()
+      if (selectedDriverRef.current === undefined) {
+        focusFleetMap(mapRef.current, drivers, defaultCenter, selectedDriverId)
+        mapRef.current.container.fitToViewport()
+        selectedDriverRef.current = selectedDriverId
+      }
     }
 
     void syncMap()
@@ -266,7 +292,32 @@ function YandexFleetMapCanvas({
     }
   }, [defaultCenter, drivers, mapReady, onSelect, selectedDriverId])
 
+  useEffect(() => {
+    if (!mapRef.current || !mapReady || !selectedDriverId || selectedDriverRef.current === selectedDriverId) {
+      return
+    }
+
+    const selectedDriver = drivers.find((driver) => driver.driver_id === selectedDriverId)
+    if (!selectedDriver) return
+
+    mapRef.current.setCenter([selectedDriver.latitude, selectedDriver.longitude], 15, {
+      duration: 250,
+    })
+    selectedDriverRef.current = selectedDriverId
+  }, [drivers, mapReady, selectedDriverId])
+
   return <div ref={containerRef} className="h-full w-full" />
+}
+
+function getPlacemarkSignature(
+  driver: FleetDriverLocation & { latitude: number; longitude: number },
+) {
+  return [
+    driver.latitude,
+    driver.longitude,
+    driver.name,
+    driver.status,
+  ].join('|')
 }
 
 function LeafletFleetMapCanvas({

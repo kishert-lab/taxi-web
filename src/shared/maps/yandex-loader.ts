@@ -16,6 +16,7 @@ export type YandexMapInstance = {
   }
   geoObjects: {
     add: (object: YandexGeoObject) => void
+    remove: (object: YandexGeoObject) => void
     removeAll: () => void
   }
   events: {
