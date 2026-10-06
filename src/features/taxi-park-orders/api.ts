@@ -8,12 +8,20 @@ export type CoordinatesPayload = {
 
 export type TaxiParkPaymentType = 'cash' | 'card' | 'corporate'
 
+export type TaxiParkOrderDriver = {
+  id: string
+  name: string
+  phone?: string
+}
+
 export type TaxiParkOrder = {
   id: string
   order_id?: string
   status: string
   driver_id?: string
   driver_name?: string
+  driver_phone?: string
+  driver?: TaxiParkOrderDriver
   passenger_phone?: string
   pickup_address?: string
   pickup_location?: CoordinatesPayload
@@ -283,6 +291,9 @@ export function normalizeTaxiParkOrder(order: TaxiParkOrderResponse): TaxiParkOr
   return {
     ...order,
     id: order.id ?? order.order_id,
+    driver_id: order.driver_id ?? order.driver?.id,
+    driver_name: order.driver_name ?? order.driver?.name,
+    driver_phone: order.driver_phone ?? order.driver?.phone,
     gross_amount: grossAmount,
     total_price: totalPrice,
     price,

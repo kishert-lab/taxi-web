@@ -22,3 +22,15 @@ it('preserves a list price already expressed in kopecks', () => {
   expect(order.gross_amount).toEqual({ amount_cents: 12047, currency: 'RUB' })
   expect(order.price).toEqual({ amount_cents: 12047, currency: 'RUB' })
 })
+
+it('normalizes the driver returned with a taxi park order', () => {
+  const order = normalizeTaxiParkOrder({
+    id: 'order-1',
+    status: 'assigned',
+    driver: { id: 'driver-1', name: 'Сергей Жуков', phone: '+79001234567' },
+  })
+
+  expect(order.driver_id).toBe('driver-1')
+  expect(order.driver_name).toBe('Сергей Жуков')
+  expect(order.driver_phone).toBe('+79001234567')
+})

@@ -35,13 +35,17 @@ export function getDriverDisplayName(
   order?: Partial<TaxiParkOrder> | Partial<TaxiParkScheduledOrder> | null,
   fallbackName?: string,
 ) {
-  const driverName = hasDriverName(order) ? order.driver_name : undefined
+  const driverName = hasDriverName(order)
+    ? order.driver_name ?? order.driver?.name
+    : undefined
   const preassignedDriverId = hasPreassignedDriverId(order) ? order.preassigned_driver_id : undefined
 
   return (
     cleanText(driverName) ??
     cleanText(fallbackName) ??
-    (order?.driver_id ? `Водитель ${order.driver_id.slice(0, 8)}` : undefined) ??
+    (order?.driver_id
+      ? `Водитель ${order.driver_id.slice(0, 8)}`
+      : undefined) ??
     (preassignedDriverId
       ? `Предназначен ${preassignedDriverId.slice(0, 8)}`
       : undefined) ??

@@ -283,7 +283,12 @@ export function TaxiParkOrdersPage() {
                   <td className="border-b border-slate-100 p-3">
                     <Badge variant={statusVariant(order.status)}>{statusLabel(order.status)}</Badge>
                   </td>
-                  <td className="border-b border-slate-100 p-3">{getDriverDisplayName(order)}</td>
+                  <td className="border-b border-slate-100 p-3">
+                    <div>{getDriverDisplayName(order)}</div>
+                    {order.driver_phone ? (
+                      <div className="mt-1 text-xs text-slate-500">{order.driver_phone}</div>
+                    ) : null}
+                  </td>
                   <td className="border-b border-slate-100 p-3">
                     {formatMoneyCents(order.gross_amount ?? order.total_price ?? order.price)}
                   </td>
